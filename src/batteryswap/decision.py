@@ -47,15 +47,14 @@ def cost_curve(fail_hours_samples: np.ndarray, candidate_days: np.ndarray,
     return c_early * early + c_late * late
 
 
-def build_cost_curves(calibrated: pd.DataFrame, quantile_levels: list[float],
-                      horizon_days: int | None = None) -> pd.DataFrame:
-    """Cost curves for every battery: long frame (battery_id, day, expected_penalty)."""
-    cm = load_config("cost_model")
-    c_early = cm["penalties"]["early_replacement_per_unit"]      # raises if UNKNOWN
-    c_late = cm["penalties"]["late_replacement_per_device_hour"] # raises if UNKNOWN
-    if horizon_days is None:
-        horizon_days = cm["horizon"]["planning_days"]            # raises if UNKNOWN
+def cost_curves_from_constants(calibrated: pd.DataFrame, quantile_levels: list[float],
+                               c_early: float, c_late: float,
+                               horizon_days: int) -> pd.DataFrame:
+    """Cost curves for every battery: long frame (battery_id, day, expected_penalty).
 
+    Pure function of its arguments — the config-guarded entry point is
+    build_cost_curves(); this form also serves the synthetic dry-run harness.
+    """
     levels = np.asarray(quantile_levels, dtype=float)
     q_cols = [f"q{int(round(q * 100)):02d}" for q in quantile_levels]
     days = np.arange(1, horizon_days + 1, dtype=float)
@@ -68,3 +67,16 @@ def build_cost_curves(calibrated: pd.DataFrame, quantile_levels: list[float],
                                     "day": days.astype(int),
                                     "expected_penalty": g}))
     return pd.concat(frames, ignore_index=True)
+
+
+def build_cost_curves(calibrated: pd.DataFrame, quantile_levels: list[float],
+                      horizon_days: int | None = None) -> pd.DataFrame:
+    """Config-guarded entry point: penalties/horizon come from the official
+    cost model and raise until transcribed (no-invention rule)."""
+    cm = load_config("cost_model")
+    c_early = cm["penalties"]["early_replacement_per_unit"]      # raises if UNKNOWN
+    c_late = cm["penalties"]["late_replacement_per_device_hour"] # raises if UNKNOWN
+    if horizon_days is None:
+        horizon_days = cm["horizon"]["planning_days"]            # raises if UNKNOWN
+    return cost_curves_from_constants(calibrated, quantile_levels, c_early, c_late,
+                                      horizon_days)

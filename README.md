@@ -1,9 +1,14 @@
 # BatterySwapAI 2026
 
+[![ci](https://github.com/ziadnasif77-debug/BatterySwapAI/actions/workflows/ci.yml/badge.svg)](https://github.com/ziadnasif77-debug/BatterySwapAI/actions/workflows/ci.yml)
+
 Competition-grade, reproducible system for the **BatterySwapAI 2026 Challenge**
 (NORA × NMBU × Soundsensing): probabilistic remaining-life estimation for
 CR2450-powered IoT vibration sensors, coupled to a cost-optimal maintenance
 schedule.
+
+**Official timeline** (see [docs/COMPETITION.md](docs/COMPETITION.md)):
+dataset release **2026-08-14**, final submission **2026-08-21**.
 
 ```
 noisy sensor time-series → probabilistic remaining-life estimates
@@ -15,7 +20,7 @@ noisy sensor time-series → probabilistic remaining-life estimates
 diagnostic, never a target. See §Architecture below for how the two stages are
 decoupled through an explicit decision layer.
 
-## ⚠️ Project status: skeleton — awaiting official competition files
+## ⚠️ Project status: pipeline wired — awaiting official files (release 2026-08-14)
 
 The official dataset, evaluator, and rules are **not yet in this repository**.
 Under the no-invention rule, every competition-owned constant lives in
@@ -28,6 +33,27 @@ Check current blockers:
 ```bash
 python -m batteryswap.cli status
 ```
+
+### Synthetic dry run — the whole pipeline, today
+
+The full chain (labels → cutoff-matched sampling → features → B3 quantiles →
+CQR calibration → decision cost curves → regret-k → ALNS → per-day routing →
+cost + KPIs) runs end-to-end on synthetic data with an explicitly synthetic
+cost model, so data day is pure transcription work:
+
+```bash
+python -m batteryswap.cli dry-run
+```
+
+Sample output (~9 s): independent per-battery plan `1310.7` → regret-k
+`1255.2` → ALNS `1194.4` synthetic cost units, calibrated coverage tracking
+nominal levels, all feasibility KPIs green. Nothing synthetic can leak into a
+submission: the real path still raises on every `UNKNOWN`.
+
+One real finding already banked: LightGBM **rejects** `monotone_constraints`
+with its built-in quantile objective, so B3 enforces non-crossing post-hoc and
+monotonicity moves to a gated smoothed-pinball experiment
+(see `models/gbm_quantile.py`).
 
 ### To unblock Phase 0, place the official artifacts here
 
@@ -47,7 +73,7 @@ python -m batteryswap.cli status
 | Cutoff-matched sampling | `src/batteryswap/sampling.py` | ✅ implemented |
 | Leak-free features | `src/batteryswap/features.py` | ✅ implemented (multi-scale, residualized vs temperature, knee group) |
 | Models B0–B1 | `src/batteryswap/models/baseline.py` | ✅ implemented |
-| Model B3 (primary): LightGBM quantile | `src/batteryswap/models/gbm_quantile.py` | ✅ implemented — monotone constraints + non-crossing |
+| Model B3 (primary): LightGBM quantile | `src/batteryswap/models/gbm_quantile.py` | ✅ implemented — non-crossing enforced; monotone constraints gated (LightGBM rejects them with quantile objective) |
 | Model B4: Weibull AFT | `src/batteryswap/models/survival.py` | ✅ implemented |
 | Model B6: sequence | `src/batteryswap/models/sequence.py` | ⛔ gated on measured final-cost win over B3 |
 | Conformal calibration (CQR, grouped) | `src/batteryswap/calibration.py` | ✅ implemented + coverage diagnostics |
@@ -57,7 +83,8 @@ python -m batteryswap.cli status
 | ALNS | `src/batteryswap/optimizer/alns.py` | ✅ implemented (adaptive weights, SA acceptance) |
 | Per-day routing | `src/batteryswap/optimizer/routing.py` | ✅ implemented (NN + 2-opt, day-cap accounting) |
 | CP-SAT assignment | `src/batteryswap/optimizer/assign.py` | ⏳ deferred until constants exist |
-| Offline harness | `src/batteryswap/simulate.py` | ⏳ wired in Phase 8 |
+| Offline harness | `src/batteryswap/simulate.py` | ⏳ wired in Phase 8 (real data) |
+| Synthetic dry-run harness | `src/batteryswap/dryrun.py` | ✅ full chain end-to-end, `make dry-run` |
 
 ## Reproduce
 

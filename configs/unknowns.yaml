@@ -5,18 +5,26 @@
 #
 # Status values: unresolved | resolved | fallback-documented
 
+# Evidence notes (docs/COMPETITION.md) come from the official FAQ, accessed
+# 2026-08-13. The FAQ warns "final scoring weights are not yet locked down
+# 100%" — so notes NEVER resolve an entry; only the released evaluator does.
+
 unknowns:
   official_dataset_files:
     value: UNKNOWN
     source: "Official competition data release (data/raw/)"
     status: unresolved
     blocks: "Everything: audit, labels, features, models, optimizer."
+    note: "Release date announced: 2026-08-14. Submission deadline 2026-08-21."
 
   official_evaluator_code:
     value: UNKNOWN
     source: "Official baseline/evaluator repository"
     status: unresolved
     blocks: "Phase 0 entirely; evaluate.py wrapper; all cost-based tuning."
+    note: >-
+      FAQ: example code (loading, baseline prognostics, baseline planning) and
+      evaluation/scoring code ship with the 2026-08-14 release.
 
   eol_definition:
     value: UNKNOWN
@@ -65,24 +73,28 @@ unknowns:
     source: "Official rules / evaluator constants"
     status: unresolved
     blocks: "Day-cap routing; overtime accounting."
+    note: "FAQ: overtime applies beyond an 8-hour workday => expect 480; verify in evaluator."
 
   overtime_rule_and_rate:
     value: UNKNOWN
     source: "Official evaluator constants"
     status: unresolved
     blocks: "Objective inside the optimizer."
+    note: "FAQ confirms overtime is a cost (not prohibition); rate unspecified."
 
   early_replacement_penalty:
     value: UNKNOWN
     source: "Official evaluator constants"
     status: unresolved
     blocks: "Decision layer g_b(d); newsvendor q*."
+    note: "FAQ: units are 'per missed hour of ideal lifetime'."
 
   late_replacement_penalty:
     value: UNKNOWN
     source: "Official evaluator constants"
     status: unresolved
     blocks: "Decision layer g_b(d); newsvendor q*."
+    note: "FAQ: 'per device-hour of downtime; expected to be larger' than early."
 
   planning_horizon_days:
     value: UNKNOWN
@@ -95,9 +107,11 @@ unknowns:
     source: "Official rules / sample submission"
     status: unresolved
     blocks: "cli submit; schema test."
+    note: "FAQ: ordered work plan (data frame / CSV) of daily replacements, via portal."
 
   evaluation_truncation_distribution:
     value: UNKNOWN
     source: "Estimated from evaluation series lengths (Phase 1)"
     status: unresolved
     blocks: "sampling.py cutoff design."
+    note: "FAQ confirms 'variable end-time cutoffs per series to prevent leakage'."

@@ -38,6 +38,26 @@ def cmd_audit(_args) -> int:
     return 0
 
 
+def cmd_dry_run(args) -> int:
+    from .dryrun import run_dry_run
+    res = run_dry_run(seed=args.seed, n_buildings=args.buildings,
+                      alns_iterations=args.alns_iterations)
+    print("DRY RUN — synthetic data + synthetic cost model (rehearsal only; "
+          "no official constants involved)")
+    print(f"  fleet: {res.n_batteries} batteries | split by building: "
+          f"{res.n_train} train / {res.n_calib} calib / {res.n_eval} eval")
+    print(f"  B3 diagnostics: MAE={res.mae_hours:.0f} h  pinball={res.pinball_loss:.1f}")
+    print("  calibrated coverage (nominal -> empirical):")
+    for _, r in res.coverage.iterrows():
+        print(f"    {r['nominal']:.2f} -> {r['empirical']:.2f}  (n={int(r['n'])})")
+    print("  cost, synthetic units (lower is better):")
+    print(f"    independent per-battery argmin : {res.independent_cost:,.1f}")
+    print(f"    regret-k construction          : {res.construct_cost:,.1f}")
+    print(f"    after ALNS                     : {res.final_cost:,.1f}")
+    print(f"  KPIs: {res.kpis}")
+    return 0
+
+
 def _not_yet(phase: str):
     def handler(_args) -> int:
         print(f"'{phase}' is blocked: official competition files are not present. "
@@ -54,6 +74,13 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validate-data", help="validate official raw files").set_defaults(
         fn=cmd_validate_data)
     sub.add_parser("audit", help="write reports/data_audit.md").set_defaults(fn=cmd_audit)
+
+    dry = sub.add_parser("dry-run", help="end-to-end plumbing rehearsal on synthetic "
+                                         "data — needs no official files")
+    dry.add_argument("--seed", type=int, default=0)
+    dry.add_argument("--buildings", type=int, default=8)
+    dry.add_argument("--alns-iterations", type=int, default=1500)
+    dry.set_defaults(fn=cmd_dry_run)
 
     # Pipeline stages wired up phase by phase; until then they fail fast and loud.
     for name in ("features", "train", "calibrate", "decide", "plan", "submit", "simulate"):

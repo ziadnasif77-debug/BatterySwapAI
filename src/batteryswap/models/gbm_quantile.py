@@ -1,10 +1,15 @@
 """B3 — LightGBM quantile regression, the primary model (§9).
 
 Hard requirements implemented here:
-- ⛔ Monotonic constraints: predicted RUL must not increase as voltage
-  decreases or as age increases.
 - ⛔ Non-crossing quantiles: enforced by isotonic sorting across the quantile
   axis after prediction (tests/test_quantile_ordering.py).
+- Monotonic constraints (§9): LightGBM REJECTS ``monotone_constraints``
+  combined with the built-in quantile objective (its per-leaf renormalization
+  is incompatible) — discovered in the synthetic dry run, raises
+  LightGBMError. The constraint table below is therefore applied to point-
+  objective models (B2) only; for B3 the candidate mechanism is a smoothed-
+  pinball custom objective WITH constraints, gated on a measured final-cost
+  win (§8/§13) once real data exists.
 """
 
 from __future__ import annotations
@@ -63,15 +68,15 @@ class GBMQuantileModel:
     def fit(self, X: pd.DataFrame, y: pd.Series,
             X_val: pd.DataFrame | None = None, y_val: pd.Series | None = None) -> "GBMQuantileModel":
         self.feature_names_ = list(X.columns)
-        constraints = monotone_constraints(self.feature_names_)
         early_stopping = int(self.params.pop("early_stopping_rounds", 0)) if X_val is not None else 0
         n_estimators = int(self.params.pop("n_estimators", 1000))
 
         for q in self.quantiles:
+            # NOTE: no monotone_constraints here — LightGBM forbids them with
+            # objective="quantile" (see module docstring).
             params = {
                 "objective": "quantile",
                 "alpha": q,
-                "monotone_constraints": constraints,
                 "verbosity": -1,
                 "seed": self.seed,
                 "deterministic": True,

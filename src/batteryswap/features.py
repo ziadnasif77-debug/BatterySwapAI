@@ -121,13 +121,17 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
     return f
 
 
-def build_feature_table(ts: pd.DataFrame, cutoffs: pd.DataFrame) -> pd.DataFrame:
+def build_feature_table(ts: pd.DataFrame, cutoffs: pd.DataFrame,
+                        failure_threshold: float | None = None) -> pd.DataFrame:
     """Feature rows for (battery_id, cutoff) pairs. Emits threshold-distance
-    features only if the official threshold is resolved."""
-    try:
-        threshold = load_config("cost_model")["failure"]["voltage_threshold"]
-    except UnknownValueError:
-        threshold = None
+    features only if a threshold is available — passed explicitly (synthetic
+    harness) or resolved from the official cost model."""
+    threshold = failure_threshold
+    if threshold is None:
+        try:
+            threshold = load_config("cost_model")["failure"]["voltage_threshold"]
+        except UnknownValueError:
+            threshold = None
 
     grouped = dict(tuple(ts.groupby("battery_id")))
     rows = []
