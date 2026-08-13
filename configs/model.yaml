@@ -1,0 +1,41 @@
+# Model hyperparameters. Starting values follow §9 of the brief and are a
+# tuning starting point, not a trusted configuration.
+
+quantiles: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
+            0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+
+feature_windows_days: [7, 30, 90, 180]
+
+gbm_quantile:                 # B3 — primary model
+  num_leaves: 63
+  learning_rate: 0.03
+  n_estimators: 4000          # with early stopping on the grouped fold
+  early_stopping_rounds: 200
+  min_child_samples: 50       # many correlated samples per battery
+  feature_fraction: 0.7
+  bagging_fraction: 0.8
+  bagging_freq: 1
+  # Monotonic constraints are mandatory (§9): RUL must not increase as
+  # voltage decreases or as age increases. The mapping feature -> direction
+  # is built in gbm_quantile.py from feature names.
+
+gbm_point:                    # B2 — control for B3
+  num_leaves: 63
+  learning_rate: 0.03
+  n_estimators: 4000
+  early_stopping_rounds: 200
+  min_child_samples: 50
+  feature_fraction: 0.7
+  bagging_fraction: 0.8
+
+survival:                     # B4
+  family: weibull_aft
+  penalizer: 0.01
+
+calibration:
+  method: cqr                 # Conformalized Quantile Regression
+  group_by: building_id
+  holdout_building_fraction: 0.2
+
+sequence_model:               # B6 — gated on measured final-cost benefit
+  enabled: false

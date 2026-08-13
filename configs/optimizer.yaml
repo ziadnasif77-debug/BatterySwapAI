@@ -1,0 +1,37 @@
+# Optimizer parameters (§12). Internal algorithm knobs are ours to choose;
+# every cost coefficient used inside the search comes from cost_model.yaml.
+
+decision:
+  # q is a TUNABLE scalar initialized at the newsvendor optimum
+  # q* = c_early / (c_early + c_late), then swept against the official
+  # evaluator (§11). "newsvendor" means: compute q* from cost_model.yaml.
+  q_init: newsvendor
+  q_sweep: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]   # multipliers on q*, clipped to (0, 1)
+
+construction:
+  method: regret_k
+  k: 3
+
+alns:
+  iterations: 20000
+  segment_length: 100          # iterations per adaptive-weight update
+  reaction_factor: 0.2
+  destroy_fraction: [0.05, 0.3]
+  operators:
+    destroy: [random_removal, building_removal, day_removal, worst_cost_removal, related_removal]
+    repair: [greedy_insertion, regret_k_insertion]
+  acceptance: simulated_annealing
+  initial_temperature_ratio: 0.05   # relative to construction cost
+  cooling_rate: 0.9997
+
+cpsat:
+  enabled: true
+  max_subproblem_buildings: 40
+  time_limit_seconds: 60
+
+routing:
+  intra_day: nearest_neighbor_2opt
+
+saa:
+  enabled: true
+  n_scenarios: 100

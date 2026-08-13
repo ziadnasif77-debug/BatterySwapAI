@@ -1,0 +1,103 @@
+# Registry of every quantity that could not be read from an official file.
+# Each entry: value (UNKNOWN until resolved), where it will come from,
+# resolution status, and what it blocks. §19.6 requires this file to reach
+# zero unresolved entries (or documented fallbacks) before submission.
+#
+# Status values: unresolved | resolved | fallback-documented
+
+unknowns:
+  official_dataset_files:
+    value: UNKNOWN
+    source: "Official competition data release (data/raw/)"
+    status: unresolved
+    blocks: "Everything: audit, labels, features, models, optimizer."
+
+  official_evaluator_code:
+    value: UNKNOWN
+    source: "Official baseline/evaluator repository"
+    status: unresolved
+    blocks: "Phase 0 entirely; evaluate.py wrapper; all cost-based tuning."
+
+  eol_definition:
+    value: UNKNOWN
+    source: "Official rules / evaluator source"
+    status: unresolved
+    blocks: "labels.py EOL computation; baseline B1; decision layer."
+
+  voltage_failure_threshold:
+    value: UNKNOWN
+    source: "Official rules / evaluator source"
+    status: unresolved
+    blocks: "labels.py (if threshold-based); distance-to-threshold features."
+
+  swap_minutes_per_battery:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Routing feasibility; opportunistic-swap rule."
+
+  room_change_overhead_minutes:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Per-day sequencing."
+
+  building_change_overhead_minutes:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Per-day sequencing."
+
+  travel_time_units:
+    value: UNKNOWN
+    source: "Official dataset documentation"
+    status: unresolved
+    blocks: "Routing."
+
+  worker_count:
+    value: UNKNOWN
+    source: "Official rules / evaluator constants"
+    status: unresolved
+    blocks: "Assignment; feasibility test."
+
+  working_minutes_per_day:
+    value: UNKNOWN
+    source: "Official rules / evaluator constants"
+    status: unresolved
+    blocks: "Day-cap routing; overtime accounting."
+
+  overtime_rule_and_rate:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Objective inside the optimizer."
+
+  early_replacement_penalty:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Decision layer g_b(d); newsvendor q*."
+
+  late_replacement_penalty:
+    value: UNKNOWN
+    source: "Official evaluator constants"
+    status: unresolved
+    blocks: "Decision layer g_b(d); newsvendor q*."
+
+  planning_horizon_days:
+    value: UNKNOWN
+    source: "Official rules"
+    status: unresolved
+    blocks: "Candidate-day grid; schedule construction."
+
+  submission_format:
+    value: UNKNOWN
+    source: "Official rules / sample submission"
+    status: unresolved
+    blocks: "cli submit; schema test."
+
+  evaluation_truncation_distribution:
+    value: UNKNOWN
+    source: "Estimated from evaluation series lengths (Phase 1)"
+    status: unresolved
+    blocks: "sampling.py cutoff design."

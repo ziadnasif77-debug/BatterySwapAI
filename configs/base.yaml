@@ -1,0 +1,27 @@
+# Global run configuration. Values here are OURS to choose (paths, seeds).
+# Anything owned by the competition lives in cost_model.yaml / unknowns.yaml.
+
+paths:
+  raw_dir: data/raw
+  official_docs_dir: docs/official
+  official_evaluator: docs/official/evaluator   # path to the official scoring code, once obtained
+  interim_dir: data/interim
+  predictions_dir: predictions
+  decision_dir: decision
+  plan_dir: plan
+  reports_dir: reports
+  submissions_dir: submissions
+  experiments_dir: experiments
+
+seed: 20260101
+
+runtime:
+  # Portal limits are UNKNOWN until the official rules are read; these are
+  # internal engineering budgets only and must be tightened once known.
+  max_train_minutes: 120
+  max_inference_minutes: 30
+
+cv:
+  # GroupKFold on building_id — hard requirement (§7 of the brief).
+  n_splits: 5
+  group_column: building_id

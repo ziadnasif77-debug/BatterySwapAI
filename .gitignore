@@ -1,0 +1,35 @@
+# Data — official competition files are never committed
+data/raw/*
+!data/raw/README.md
+data/interim/
+data/processed/
+
+# Pipeline outputs
+predictions/
+decision/
+plan/
+submissions/
+reports/*.parquet
+reports/figures/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

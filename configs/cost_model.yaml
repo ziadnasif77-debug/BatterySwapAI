@@ -1,0 +1,39 @@
+# ⛔ EVERY value in this file must be transcribed from the official evaluator
+# source code, with the source line recorded in reports/cost_model.md.
+# Until then each entry is the literal string UNKNOWN. The config loader
+# (batteryswap.config) raises UnknownValueError on any attempt to read an
+# UNKNOWN value, so no code path can silently run on a guessed constant.
+
+time:
+  swap_minutes_per_battery: UNKNOWN        # wrench time per battery swap
+  room_change_overhead_minutes: UNKNOWN    # fixed overhead moving between rooms in one building
+  building_change_overhead_minutes: UNKNOWN
+  travel_time_units: UNKNOWN               # confirm matrix units (expected: minutes)
+
+workforce:
+  worker_count: UNKNOWN
+  working_minutes_per_day: UNKNOWN
+  overtime_allowed: UNKNOWN                # cost, prohibition, or capped?
+  overtime_rate: UNKNOWN                   # cost per overtime minute/hour
+
+penalties:
+  early_replacement_per_unit: UNKNOWN      # unit itself must be confirmed (hour? day?)
+  late_replacement_per_device_hour: UNKNOWN
+
+horizon:
+  planning_days: UNKNOWN
+  day_indexing_base: UNKNOWN               # 0-based or 1-based in the submission
+
+failure:
+  eol_definition: UNKNOWN                  # official end-of-life rule, verbatim
+  voltage_threshold: UNKNOWN               # only if the official rule is threshold-based
+
+submission:
+  columns: UNKNOWN                         # exact column names
+  dtypes: UNKNOWN
+  battery_may_repeat: UNKNOWN
+
+derived:
+  # Filled by the Phase-0 sensitivity study, never by hand.
+  late_over_early_ratio: UNKNOWN
+  marginal_visit_cost_per_building: UNKNOWN

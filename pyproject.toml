@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "batteryswap"
+version = "0.1.0"
+description = "BatterySwapAI 2026 — probabilistic RUL + cost-optimal maintenance scheduling"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "numpy>=1.26,<3",
+    "pandas>=2.2,<3",
+    "pyarrow>=16,<20",
+    "PyYAML>=6.0,<7",
+    "scipy>=1.13,<2",
+    "scikit-learn>=1.5,<2",
+    "lightgbm>=4.3,<5",
+    "lifelines>=0.28,<1",
+    "ortools>=9.10,<10",
+    "matplotlib>=3.8,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+batteryswap = "batteryswap.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
