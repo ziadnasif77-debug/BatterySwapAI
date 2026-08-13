@@ -3,14 +3,18 @@
 
 PY ?= python
 
-.PHONY: help install data audit dry-run features train calibrate decide plan submit simulate test lint
+.PHONY: help install data audit dry-run cv features train calibrate decide plan submit simulate test lint
 
 help:
-	@echo "Targets: install | data | audit | dry-run | features | train | calibrate | decide | plan | submit | simulate | test | lint"
+	@echo "Targets: install | data | audit | dry-run | cv | features | train | calibrate | decide | plan | submit | simulate | test | lint"
 
 # Full-pipeline rehearsal on synthetic data — runs with NO official files.
 dry-run:
-	$(PY) -m batteryswap.cli dry-run
+	$(PY) -m batteryswap.cli dry-run --report --record
+
+# Grouped (GroupKFold by building) CV, per-fold + variance.
+cv:
+	$(PY) -m batteryswap.cli cv
 
 install:
 	$(PY) -m pip install -e ".[dev]"

@@ -24,6 +24,32 @@ def newsvendor_q(c_early: float, c_late: float) -> float:
     return c_early / (c_early + c_late)
 
 
+def failure_hours_at_q(q_row: np.ndarray, quantile_levels: np.ndarray, q: float) -> float:
+    """Calibrated failure time at level q, by interpolation on the quantile grid."""
+    return float(np.interp(q, quantile_levels, q_row))
+
+
+def days_at_q(calibrated: pd.DataFrame, quantile_levels: list[float], q: float,
+              horizon_days: int) -> dict[str, int]:
+    """The q-rule: replace each battery at the q-quantile of its calibrated
+    failure-time distribution, floored to a whole day (replace on or before)
+    and clipped into the horizon.
+
+    ⛔ q is a TUNABLE scalar, not the newsvendor value (§11). Initialize it at
+    newsvendor_q() and sweep it against the evaluator — once trips are shared
+    across a building, grouping already pulls batteries early, so the true
+    optimum sits materially above the theoretical q*.
+    """
+    levels = np.asarray(quantile_levels, dtype=float)
+    cols = [f"q{int(round(x * 100)):02d}" for x in quantile_levels]
+    out = {}
+    for _, row in calibrated.iterrows():
+        hours = failure_hours_at_q(row[cols].to_numpy(dtype=float), levels, q)
+        day = int(np.floor(hours / 24.0))
+        out[str(row["battery_id"])] = int(np.clip(day, 1, horizon_days))
+    return out
+
+
 def quantile_grid_to_samples(q_row: np.ndarray, quantile_levels: np.ndarray,
                              n_samples: int = 400) -> np.ndarray:
     """Approximate the failure-time distribution by inverse-CDF interpolation

@@ -56,12 +56,30 @@ files disagree, they win (§0 source-of-truth rule).
 
 ## Data-day checklist (2026-08-14)
 
-1. Download release → `data/raw/` + `docs/official/` (verbatim).
-2. `make data` — schema validation against `io.py`; fix schemas to match reality.
-3. Phase 0 (§5): run official baseline, transcribe constants into
-   `configs/cost_model.yaml`, flip `unknowns.yaml` entries to `resolved`,
-   wire `evaluate.py` to the real entry point, sensitivity study,
-   `reports/cost_model.md`.
-4. `make audit` — Phase 1 report.
-5. Replace `SyntheticCostModel` usage in any experiment with the official
-   scorer; the dry run stays synthetic-only by design.
+Ordered by what unblocks the most downstream work. Everything not listed here
+is already built and tested against synthetic data.
+
+1. Download release → `data/raw/` + `docs/official/` (verbatim, unmodified).
+2. `make data` — schema validation. Pin the real filenames and fix
+   `io.py` schemas to match the documentation field by field.
+3. **Phase 0 (§5), in this order:**
+   - Run the official baseline unmodified end-to-end; record its score (floor).
+   - Transcribe every constant into `configs/cost_model.yaml`; flip the
+     matching `unknowns.yaml` entries to `resolved`.
+   - Pin the real entry point in `evaluate.py` (the loader currently guesses
+     among score/evaluate/compute_cost/main).
+   - Sensitivity study → the two governing numbers: empirical
+     `late/early` ratio, and the **measured per-building** marginal trip cost
+     (this replaces the proxy in `optimizer/opportunistic.py`).
+   - Write `reports/cost_model.md`.
+4. `make audit` — Phase 1 report (knee distribution, seasonal confound).
+5. Estimate the truncation distribution from the evaluation series lengths and
+   feed it to `sampling.py` (currently a synthetic stand-in).
+6. Build the two things that cannot exist before the release: the **submission
+   writer** (format unknown) and the **fast surrogate** + its
+   agreement test (§16.4, ≥1000 plans).
+7. Re-run `make cv` and the q sweep on real data — ⛔ the synthetic fleet has
+   near-zero travel pressure, so the swept optimum has NOT yet been shown to
+   sit above q\*. Re-measure before trusting any q.
+8. Wire the CLI pipeline commands (`features`/`train`/…/`submit`) to the real
+   data path; the synthetic dry run stays synthetic by design.

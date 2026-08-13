@@ -19,3 +19,5 @@ jobs:
       - run: python -m pytest -q
       # full synthetic rehearsal — proves the pipeline wires together
       - run: python -m batteryswap.cli dry-run --buildings 5 --alns-iterations 500
+      - run: python -m batteryswap.cli dry-run --buildings 5 --alns-iterations 300 --saa
+      - run: python -m batteryswap.cli cv --buildings 8 --folds 4

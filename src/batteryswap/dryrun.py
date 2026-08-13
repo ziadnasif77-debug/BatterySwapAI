@@ -22,17 +22,23 @@ import numpy as np
 import pandas as pd
 
 from .calibration import apply_offsets, coverage_table, cqr_offsets
-from .decision import cost_curves_from_constants
+from .decision import cost_curves_from_constants, days_at_q, newsvendor_q
 from .features import assemble_matrix, build_feature_table
 from .labels import compute_eol
+from .metrics import mae as mae_metric
+from .metrics import pinball_loss
 from .models.gbm_quantile import GBMQuantileModel
 from .optimizer import Schedule
 from .optimizer.alns import (ALNSConfig, alns_search, day_removal,
                              make_building_removal, random_removal)
 from .optimizer.construct import regret_k_construct
+from .optimizer.opportunistic import opportunistic_upgrade, per_building_trip_cost
 from .optimizer.routing import plan_day
+from .saa import draw_failure_scenarios, scenario_cost_curves
 from .sampling import sample_cutoffs
 from .synthetic import synthetic_fleet
+from .tuning import best_q as sweep_best_q
+from .tuning import sweep_q
 
 HOUR = pd.Timedelta(hours=1)
 
@@ -74,7 +80,14 @@ class DryRunResult:
     coverage: pd.DataFrame
     independent_cost: float   # each battery at its own curve argmin, no grouping
     construct_cost: float     # regret-k with building-cohesion heuristic
-    final_cost: float         # after ALNS against the synthetic objective
+    alns_cost: float          # after ALNS
+    final_cost: float         # best pipeline variant (ALNS vs q-rule, + opportunistic)
+    q_star: float             # newsvendor theoretical value
+    q_sweep: pd.DataFrame     # q -> final cost
+    best_q: float
+    best_q_cost: float
+    opportunistic_moves: int
+    saa_max_curve_deviation: float   # analytic vs scenario curves (convergence check)
     schedule: Schedule
     kpis: dict = field(default_factory=dict)
 
@@ -125,17 +138,10 @@ def schedule_cost(schedule: Schedule, curves: dict[str, np.ndarray],
 
 # --- pipeline -----------------------------------------------------------------
 
-def _pinball(pred_q: pd.DataFrame, y: np.ndarray, quantiles: list[float]) -> float:
-    losses = []
-    for q in quantiles:
-        e = y - pred_q[f"q{int(round(q * 100)):02d}"].to_numpy()
-        losses.append(np.mean(np.maximum(q * e, (q - 1) * e)))
-    return float(np.mean(losses))
-
-
 def run_dry_run(seed: int = 0, n_buildings: int = 8,
                 n_cutoffs_per_battery: int = 4, alns_iterations: int = 1500,
                 life_days_range: tuple[int, int] = (550, 750),
+                use_saa: bool = False, n_scenarios: int = 200,
                 cm: SyntheticCostModel = SyntheticCostModel()) -> DryRunResult:
     rng = np.random.default_rng(seed)
     fleet = synthetic_fleet(n_buildings=n_buildings, seed=seed,
@@ -201,20 +207,36 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
 
     coverage = coverage_table(calibrated, y_ev, QUANTILES)
     y = y_ev.to_numpy(dtype=float)
-    mae = float(np.mean(np.abs(calibrated["q50"].to_numpy() - y)))
-    pinball = _pinball(calibrated, y, QUANTILES)
+    mae = mae_metric(calibrated["q50"].to_numpy(), y)
+    pinball = pinball_loss(calibrated, y, QUANTILES)
 
     # decision layer -> curves dict
     horizon = int(np.ceil(calibrated["q95"].max() / 24.0)) + 30
     curve_df = cost_curves_from_constants(calibrated, QUANTILES,
                                           cm.c_early_per_hour, cm.c_late_per_hour, horizon)
-    curves = {b: g.sort_values("day")["expected_penalty"].to_numpy()
-              for b, g in curve_df.groupby("battery_id")}
+    analytic_curves = {b: g.sort_values("day")["expected_penalty"].to_numpy()
+                       for b, g in curve_df.groupby("battery_id")}
+
+    # SAA (§12.5): scenario-averaged curves. With LINEAR penalties these
+    # converge to the analytic curves — the deviation below is that check.
+    # Their real value arrives with the official penalty shape, which may be
+    # piecewise or capped; the objective signature is identical either way.
+    ids, scenarios = draw_failure_scenarios(calibrated, QUANTILES, n_scenarios, seed)
+    saa_curves = scenario_cost_curves(ids, scenarios, horizon,
+                                      cm.c_early_per_hour, cm.c_late_per_hour)
+    scale = max(float(np.max([c.max() for c in analytic_curves.values()])), 1e-9)
+    saa_dev = max(float(np.max(np.abs(saa_curves[b] - analytic_curves[b])))
+                  for b in analytic_curves) / scale
+
+    curves = saa_curves if use_saa else analytic_curves
 
     travel = fleet.travel
-    off_diag = travel.to_numpy()[~np.eye(len(travel), dtype=bool)]
-    # amortized value of sharing a trip: building overhead + typical travel leg
-    cohesion = cm.minute_cost * (cm.building_change_minutes + float(np.mean(off_diag)))
+    eval_buildings = sorted({battery_building[b] for b in eval_b})
+    # ⛔ PROXY: replaced by the measured per-building marginal trip cost from
+    # the Phase 0 sensitivity study once the official evaluator exists.
+    trip_cost = per_building_trip_cost(eval_buildings, travel,
+                                       cm.building_change_minutes, cm.minute_cost)
+    cohesion = float(np.mean(list(trip_cost.values()))) / 2.0
 
     def insertion_cost(schedule: Schedule, b: str, d: int) -> float:
         c = float(curves[b][d - 1])
@@ -226,7 +248,13 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
     independent = Schedule(assignments={b: int(np.argmin(curves[b])) + 1 for b in eval_b})
     constructed = regret_k_construct(eval_b, candidate_days, insertion_cost, k=3)
 
-    objective = lambda s: schedule_cost(s, curves, loc, travel, cm)  # noqa: E731
+    # ⛔ Scoring always uses the ANALYTIC curves: this is the stand-in for the
+    # official evaluator, so SAA-on and SAA-off are judged by one fixed ruler.
+    def objective(s: Schedule) -> float:
+        return schedule_cost(s, analytic_curves, loc, travel, cm)
+
+    def opportunistic(s: Schedule) -> Schedule:
+        return opportunistic_upgrade(s, curves, battery_building, trip_cost)[0]
 
     def curve_repair(partial: Schedule, removed: list[str],
                      op_rng: np.random.Generator) -> Schedule:
@@ -239,13 +267,32 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
             assignments[b] = int(np.argmin(arr)) + 1
         return Schedule(assignments=assignments)
 
-    best, final_cost = alns_search(
+    alns_best, alns_cost = alns_search(
         constructed, objective,
         destroy_ops=[random_removal, day_removal,
                      make_building_removal(battery_building)],
         repair_ops=[curve_repair],
         config=ALNSConfig(iterations=alns_iterations, seed=seed),
     )
+
+    # --- q sweep (§11) -------------------------------------------------------
+    # Swept WITH the opportunistic rule applied, because that is how the
+    # pipeline ships — sweeping a rule you do not ship measures nothing.
+    q_star = newsvendor_q(cm.c_early_per_hour, cm.c_late_per_hour)
+    q_sweep = sweep_q(calibrated, QUANTILES, horizon, objective,
+                      post_process=opportunistic, c_early=cm.c_early_per_hour,
+                      c_late=cm.c_late_per_hour)
+    q_best, q_best_cost = sweep_best_q(q_sweep)
+
+    # --- final selection: best variant, judged only by cost -------------------
+    alns_upgraded, moves = opportunistic_upgrade(alns_best, curves,
+                                                 battery_building, trip_cost)
+    q_schedule = opportunistic(Schedule(
+        assignments=days_at_q(calibrated, QUANTILES, q_best, horizon)))
+    candidates = [(objective(alns_upgraded), alns_upgraded),
+                  (alns_cost, alns_best),
+                  (objective(q_schedule), q_schedule)]
+    final_cost, best = min(candidates, key=lambda pair: pair[0])
 
     # KPIs on the final schedule
     plans = route_schedule(best, loc, travel, cm)
@@ -270,5 +317,8 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
         n_eval=len(eval_b), mae_hours=mae, pinball_loss=pinball, coverage=coverage,
         independent_cost=objective(independent),
         construct_cost=objective(constructed),
-        final_cost=final_cost, schedule=best, kpis=kpis,
+        alns_cost=alns_cost, final_cost=final_cost,
+        q_star=q_star, q_sweep=q_sweep, best_q=q_best, best_q_cost=q_best_cost,
+        opportunistic_moves=moves, saa_max_curve_deviation=saa_dev,
+        schedule=best, kpis=kpis,
     )
