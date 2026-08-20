@@ -3,10 +3,10 @@
 
 PY ?= python
 
-.PHONY: help install data audit dry-run cv features train calibrate decide plan submit simulate test lint
+.PHONY: help install data audit dry-run cv sweep features train calibrate decide plan submit simulate test lint
 
 help:
-	@echo "Targets: install | data | audit | dry-run | cv | features | train | calibrate | decide | plan | submit | simulate | test | lint"
+	@echo "Targets: install | data | audit | dry-run | cv | sweep | features | train | calibrate | decide | plan | submit | simulate | test | lint"
 
 # Full-pipeline rehearsal on synthetic data — runs with NO official files.
 dry-run:
@@ -41,8 +41,13 @@ decide: calibrate
 plan: decide
 	$(PY) -m batteryswap.cli plan
 
+# Raw official data -> submission, deterministic, no manual step.
 submit:
-	$(PY) -m batteryswap.cli submit
+	$(PY) -m batteryswap.cli submit --record
+
+# Sweep the selection bar against the scorer (the section-11 q sweep).
+sweep:
+	$(PY) -m batteryswap.cli sweep
 
 simulate:
 	$(PY) -m batteryswap.cli simulate

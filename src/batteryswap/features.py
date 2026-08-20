@@ -122,10 +122,18 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
 
 
 def build_feature_table(ts: pd.DataFrame, cutoffs: pd.DataFrame,
-                        failure_threshold: float | None = None) -> pd.DataFrame:
-    """Feature rows for (battery_id, cutoff) pairs. Emits threshold-distance
-    features only if a threshold is available — passed explicitly (synthetic
-    harness) or resolved from the official cost model."""
+                        failure_threshold: float | None = None,
+                        id_column: str = "battery_id",
+                        target_columns: tuple[str, ...] = ("rul_hours", "rul_days"),
+                        ) -> pd.DataFrame:
+    """Feature rows for (id, cutoff) pairs. Emits threshold-distance features
+    only if a threshold is available — passed explicitly or resolved from the
+    official cost model.
+
+    `id_column` lets the same builder serve the synthetic harness
+    (``battery_id``) and the official data (``device_id``); the series frame
+    must carry a ``timestamp`` column either way.
+    """
     threshold = failure_threshold
     if threshold is None:
         try:
@@ -133,15 +141,16 @@ def build_feature_table(ts: pd.DataFrame, cutoffs: pd.DataFrame,
         except UnknownValueError:
             threshold = None
 
-    grouped = dict(tuple(ts.groupby("battery_id")))
+    grouped = dict(tuple(ts.groupby(id_column)))
     rows = []
     for _, row in cutoffs.iterrows():
-        b = row["battery_id"]
-        feats = compute_features(grouped[b], row["cutoff"], threshold)
-        feats["battery_id"] = b          # carried as INDEX metadata, stripped below
+        key = row[id_column]
+        feats = compute_features(grouped[key], row["cutoff"], threshold)
+        feats[id_column] = key           # carried as INDEX metadata, stripped below
         feats["cutoff"] = row["cutoff"]
-        if "rul_hours" in row.index:
-            feats["rul_hours"] = row["rul_hours"]
+        for target in target_columns:
+            if target in row.index:
+                feats[target] = row[target]
         rows.append(feats)
     return pd.DataFrame(rows)
 
@@ -152,9 +161,11 @@ def assemble_matrix(table: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series | None
     ⛔ Raises if any identifier column would reach X. meta carries ids/cutoffs
     for grouping and joining — never for prediction.
     """
-    meta_cols = [c for c in (*ID_COLUMNS, "cutoff", "rul_hours", "censored") if c in table.columns]
+    meta_cols = [c for c in (*ID_COLUMNS, "cutoff", "rul_hours", "rul_days",
+                             "censored", "scenario") if c in table.columns]
     meta = table[meta_cols].copy()
-    y = table["rul_hours"].copy() if "rul_hours" in table.columns else None
+    target = next((c for c in ("rul_days", "rul_hours") if c in table.columns), None)
+    y = table[target].copy() if target else None
     X = table.drop(columns=meta_cols, errors="ignore")
 
     leaked = [c for c in X.columns if c in ID_COLUMNS or c.endswith("_id")]

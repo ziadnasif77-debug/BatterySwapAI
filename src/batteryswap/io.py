@@ -1,13 +1,21 @@
 """Loading, schema validation, and dtype enforcement for the official files.
 
-⛔ The schemas below follow §2 of the project brief and are PROVISIONAL until
-verified field-by-field against the released dataset documentation. Any
-mismatch must be fixed here first — every downstream module trusts these
-frames.
+Schemas below are the REAL ones, verified field-by-field against the
+2026-08-14 release (not the provisional guesses the brief sketched):
+
+    battery_metrics.parquet  end_time, voltage, temperature, device_id
+    devices.csv              device_id, building_id, room_id, start_time, end_time
+    eol_times.csv            device_id, end_time            (blank => censored)
+    scenarios.json           48 scenarios: settings, start_time, travel_costs
+
+Note the naming the brief got wrong: the identifier is ``device_id`` (not
+``battery_id``) and the timestamp column is ``end_time`` — the END of each
+one-hour averaging window.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,19 +26,21 @@ from .config import load_config
 
 # Identifier columns. ⛔ Never features — enforced again in features.py and
 # by tests/test_no_leakage.py.
-ID_COLUMNS = ("battery_id", "building_id", "room_id")
+ID_COLUMNS = ("device_id", "building_id", "room_id", "battery_id")
 
-TIMESERIES_SCHEMA = {
-    "timestamp": "datetime64[ns]",
-    "battery_id": "string",
+METRICS_SCHEMA = {
+    "end_time": "datetime64[ns]",
+    "device_id": "string",
     "voltage": "float64",
     "temperature": "float64",
 }
 
-LOCATIONS_SCHEMA = {
+DEVICES_SCHEMA = {
+    "device_id": "string",
     "building_id": "string",
     "room_id": "string",
-    "battery_id": "string",
+    "start_time": "datetime64[ns, UTC]",
+    "end_time": "datetime64[ns, UTC]",
 }
 
 
@@ -38,107 +48,147 @@ class SchemaError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class Scenario:
+    """One planning problem: a start date, a depot, and a travel matrix."""
+    name: str
+    start_time: pd.Timestamp
+    settings: dict
+    travel: pd.DataFrame          # building x building, HOURS
+
+    @property
+    def depot(self) -> str:
+        return self.settings["base_location"]
+
+    @property
+    def horizon_days(self) -> int:
+        return int(self.settings["planning_window_days"])
+
+    @property
+    def end_time(self) -> pd.Timestamp:
+        return self.start_time + pd.Timedelta(days=self.horizon_days)
+
+
 @dataclass
 class RawData:
-    train: pd.DataFrame
-    evaluation: pd.DataFrame
-    locations: pd.DataFrame
-    travel_minutes: pd.DataFrame  # building x building, index == columns
+    metrics: pd.DataFrame          # hourly series, all devices
+    devices: pd.DataFrame          # device -> building/room, install + last-seen
+    eol: pd.DataFrame              # device_id, eol_time (NaT => right-censored)
+    scenarios: list[Scenario]
     issues: list[str] = field(default_factory=list)
+
+    @property
+    def location_of(self) -> dict[str, tuple[str, str]]:
+        return {r.device_id: (r.building_id, r.room_id)
+                for r in self.devices.itertuples()}
 
 
 def _enforce(df: pd.DataFrame, schema: dict[str, str], name: str) -> pd.DataFrame:
     missing = set(schema) - set(df.columns)
     if missing:
-        raise SchemaError(f"{name}: missing expected columns {sorted(missing)}. "
-                          f"Verify io.py schemas against the official documentation.")
-    extra = set(df.columns) - set(schema)
+        raise SchemaError(f"{name}: missing expected columns {sorted(missing)}; "
+                          f"got {sorted(df.columns)}")
     out = df.copy()
     for col, dtype in schema.items():
         out[col] = out[col].astype(dtype)
-    if extra:
-        # Extra columns are kept but flagged — they may be documented fields
-        # the provisional schema does not know about yet.
-        out.attrs["extra_columns"] = sorted(extra)
     return out
 
 
-def _find_one(raw_dir: Path, patterns: list[str], what: str) -> Path:
-    for pattern in patterns:
-        hits = sorted(raw_dir.glob(pattern))
-        if len(hits) == 1:
-            return hits[0]
-        if len(hits) > 1:
-            raise FileNotFoundError(
-                f"Ambiguous {what}: {[h.name for h in hits]} all match {pattern} in {raw_dir}. "
-                f"Pin the exact filename in io.py once the official release is inspected.")
-    raise FileNotFoundError(
-        f"Could not locate the {what} in {raw_dir} (tried {patterns}). "
-        f"Place the official competition files under data/raw/ first.")
+def load_scenarios(path: str | Path) -> list[Scenario]:
+    """Parse scenarios.json into Scenario objects with square travel matrices."""
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    scenarios = []
+    for s in raw:
+        tc = pd.DataFrame(s["travel_costs"])
+        travel = tc.pivot(index="from", columns="to", values="hours")
+        travel = travel.sort_index().sort_index(axis=1)
+        if list(travel.index) != list(travel.columns):
+            raise SchemaError(f"{s['name']}: travel matrix is not square")
+        scenarios.append(Scenario(name=s["name"],
+                                  start_time=pd.Timestamp(s["start_time"]),
+                                  settings=dict(s["settings"]),
+                                  travel=travel.astype(float)))
+    return scenarios
 
 
 def load_raw(raw_dir: str | Path | None = None) -> RawData:
-    """Load and validate every official input file.
-
-    Filename patterns are guesses to be pinned on first contact with the real
-    release; the schema validation is the part that matters.
-    """
+    """Load and validate every official input file."""
     if raw_dir is None:
-        base = load_config("base")
-        raw_dir = Path(base["paths"]["raw_dir"])
+        raw_dir = Path(load_config("base")["paths"]["raw_dir"])
     raw_dir = Path(raw_dir)
 
-    train_path = _find_one(raw_dir, ["*train*.parquet"], "training time-series")
-    eval_path = _find_one(raw_dir, ["*eval*.parquet", "*test*.parquet"], "evaluation time-series")
-    loc_path = _find_one(raw_dir, ["*location*.parquet", "*location*.csv"], "locations table")
-    travel_path = _find_one(raw_dir, ["*travel*.parquet", "*travel*.csv", "*distance*.csv"],
-                            "travel-time matrix")
+    metrics = pd.read_parquet(raw_dir / "battery_metrics.parquet")
+    metrics = metrics.reset_index(drop=True)
+    metrics["device_id"] = metrics["device_id"].astype("string")
+    metrics = _enforce(metrics, METRICS_SCHEMA, "battery_metrics.parquet")
+    metrics = metrics.sort_values(["device_id", "end_time"], ignore_index=True)
 
-    def read_any(path: Path) -> pd.DataFrame:
-        return pd.read_csv(path) if path.suffix == ".csv" else pd.read_parquet(path)
+    devices = pd.read_csv(raw_dir / "devices.csv", index_col=0)
+    devices = _enforce(devices, DEVICES_SCHEMA, "devices.csv").reset_index(drop=True)
 
-    train = _enforce(read_any(train_path), TIMESERIES_SCHEMA, "train")
-    evaluation = _enforce(read_any(eval_path), TIMESERIES_SCHEMA, "evaluation")
-    locations = _enforce(read_any(loc_path), LOCATIONS_SCHEMA, "locations")
+    eol = pd.read_csv(raw_dir / "eol_times.csv")
+    eol = eol.rename(columns={"end_time": "eol_time"})
+    eol["device_id"] = eol["device_id"].astype("string")
+    eol["eol_time"] = pd.to_datetime(eol["eol_time"], utc=True)
+    eol["censored"] = eol["eol_time"].isna()
 
-    travel = read_any(travel_path)
-    if travel.columns[0].lower() in ("building_id", "building", "id", "unnamed: 0"):
-        travel = travel.set_index(travel.columns[0])
-    travel.index = travel.index.astype(str)
-    travel.columns = travel.columns.astype(str)
-    issues = validate_travel_matrix(travel)
+    scenarios = load_scenarios(raw_dir / "scenarios.json")
 
-    return RawData(train=train, evaluation=evaluation, locations=locations,
-                   travel_minutes=travel, issues=issues)
+    issues = validate(metrics, devices, eol, scenarios)
+    return RawData(metrics=metrics, devices=devices, eol=eol,
+                   scenarios=scenarios, issues=issues)
 
 
-def validate_travel_matrix(travel: pd.DataFrame) -> list[str]:
-    """Structural checks; returns human-readable issues (empty == clean)."""
+def validate(metrics: pd.DataFrame, devices: pd.DataFrame, eol: pd.DataFrame,
+             scenarios: list[Scenario]) -> list[str]:
+    """Cross-file structural checks; returns human-readable issues."""
     issues: list[str] = []
-    if list(travel.index) != list(travel.columns):
-        issues.append("travel matrix index != columns (not building x building?)")
-    values = travel.to_numpy(dtype=float)
-    if np.isnan(values).any():
-        issues.append("travel matrix contains NaN")
-    if (values < 0).any():
-        issues.append("travel matrix contains negative times")
-    if not np.allclose(np.diag(values), 0, atol=1e-9):
-        issues.append("travel matrix diagonal is not zero")
-    if not np.allclose(values, values.T, rtol=1e-6, atol=1e-6):
-        issues.append("travel matrix is asymmetric — routing must treat it as directed")
+
+    m_dev = set(metrics["device_id"].unique())
+    d_dev = set(devices["device_id"])
+    e_dev = set(eol["device_id"])
+    if m_dev != d_dev:
+        issues.append(f"metrics/devices device sets differ "
+                      f"(metrics-only {len(m_dev - d_dev)}, devices-only {len(d_dev - m_dev)})")
+    if d_dev != e_dev:
+        issues.append("devices/eol device sets differ")
+
+    if metrics[["voltage", "temperature"]].isna().any().any():
+        n = int(metrics[["voltage", "temperature"]].isna().any(axis=1).sum())
+        issues.append(f"{n} metric rows have a null voltage or temperature")
+
+    d_bld = set(devices["building_id"])
+    for s in scenarios:
+        s_bld = set(s.travel.index)
+        if not d_bld <= s_bld:
+            issues.append(f"{s.name}: travel matrix misses buildings {sorted(d_bld - s_bld)}")
+        if s.depot not in s_bld:
+            issues.append(f"{s.name}: depot {s.depot} absent from its travel matrix")
+        v = s.travel.to_numpy(dtype=float)
+        if np.isnan(v).any():
+            issues.append(f"{s.name}: travel matrix contains NaN")
+        if (v < 0).any():
+            issues.append(f"{s.name}: travel matrix contains negative times")
     return issues
 
 
 def validate_data(raw_dir: str | Path | None = None) -> RawData:
     """`make data` entry point: load, validate, and report."""
     data = load_raw(raw_dir)
-    n_train = data.train["battery_id"].nunique()
-    n_eval = data.evaluation["battery_id"].nunique()
-    print(f"train: {len(data.train):,} rows, {n_train} batteries")
-    print(f"evaluation: {len(data.evaluation):,} rows, {n_eval} batteries")
-    print(f"locations: {len(data.locations):,} rows, "
-          f"{data.locations['building_id'].nunique()} buildings")
-    print(f"travel matrix: {data.travel_minutes.shape}")
+    print(f"metrics : {len(data.metrics):,} rows, "
+          f"{data.metrics['device_id'].nunique()} devices, "
+          f"{data.metrics['end_time'].min()} .. {data.metrics['end_time'].max()}")
+    print(f"devices : {len(data.devices)} devices, "
+          f"{data.devices['building_id'].nunique()} buildings, "
+          f"{data.devices['room_id'].nunique()} rooms")
+    n_obs = int((~data.eol["censored"]).sum())
+    print(f"eol     : {n_obs} observed / {len(data.eol)} "
+          f"({n_obs / len(data.eol):.1%}), {int(data.eol['censored'].sum())} censored")
+    s = data.scenarios[0]
+    print(f"scenarios: {len(data.scenarios)}, window={s.horizon_days}d, "
+          f"travel {s.travel.shape} in hours, "
+          f"starts {data.scenarios[0].start_time.date()} .. "
+          f"{data.scenarios[-1].start_time.date()}")
     for issue in data.issues:
         print(f"WARNING: {issue}")
     return data

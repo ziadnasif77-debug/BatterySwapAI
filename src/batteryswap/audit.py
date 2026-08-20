@@ -1,124 +1,225 @@
-"""Phase 1 — data audit (§6). Produces reports/data_audit.md.
+"""Phase 1 - data audit (section 6). Produces reports/data_audit.md.
 
-Covers: schema/dtypes as loaded; row counts per battery/room/building;
-sampling regularity and gaps; missing values; distributions; lifetime
-distribution; installation clustering; evaluation truncation shape; plus the
-two protective audits — knee detection and the seasonal (voltage~temperature)
-confound.
+Covers schema and dtypes as loaded; counts per device/room/building; sampling
+regularity and gaps; missing values; distributions; the lifetime distribution
+and its censoring; installation clustering within buildings; the scenario
+(cutoff) structure; plus the two protective audits the brief singles out -
+knee detection and the seasonal voltage~temperature confound.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from scipy import stats
 
-from .config import load_config
 from .io import RawData
+from .labels import ground_truth_eol, threshold_agreement
+
+REPORTS_DIR = Path("reports")
 
 
-def gap_distribution(ts: pd.DataFrame) -> pd.Series:
-    """Distribution of sampling gaps in hours across all batteries."""
-    gaps = (ts.sort_values(["battery_id", "timestamp"])
-              .groupby("battery_id")["timestamp"].diff()
-              .dropna() / pd.Timedelta(hours=1))
+def gap_distribution(metrics: pd.DataFrame) -> pd.Series:
+    """Sampling gaps in hours across all devices."""
+    gaps = (metrics.groupby("device_id", observed=True)["end_time"].diff()
+            .dropna() / pd.Timedelta(hours=1))
     return gaps.describe(percentiles=[0.5, 0.9, 0.99, 0.999])
 
-def temperature_confound(ts: pd.DataFrame) -> pd.DataFrame:
-    """Per-battery OLS of voltage on temperature. If the coefficient
+
+def temperature_confound(metrics: pd.DataFrame, min_rows: int = 48) -> pd.DataFrame:
+    """Per-device OLS of voltage on temperature. If the coefficient
     distribution is materially non-zero, every raw-voltage feature is partly a
-    thermometer (§6)."""
+    thermometer (section 6)."""
     rows = []
-    for b, g in ts.groupby("battery_id"):
+    for device_id, g in metrics.groupby("device_id", observed=True):
         mask = g["voltage"].notna() & g["temperature"].notna()
-        if mask.sum() < 48:
+        if mask.sum() < min_rows:
             continue
         res = stats.linregress(g.loc[mask, "temperature"], g.loc[mask, "voltage"])
-        rows.append({"battery_id": b, "coef_v_per_degC": res.slope,
+        rows.append({"device_id": device_id, "coef_v_per_degC": res.slope,
                      "r2": res.rvalue ** 2, "n": int(mask.sum())})
     return pd.DataFrame(rows)
 
 
-def knee_report(ts: pd.DataFrame, labels: pd.DataFrame,
-                short_days: int = 30, long_days: int = 180,
-                ratio_threshold: float = 3.0) -> pd.DataFrame:
-    """Locate, per non-censored battery, when the 30d/180d slope ratio first
-    exceeds `ratio_threshold` (decay acceleration), and report
-    time_from_knee_to_EOL. This is the window the model must resolve."""
-    from .features import _theil_sen_slope
+def knee_windows(metrics: pd.DataFrame, truth: pd.DataFrame,
+                 lookback_days: int = 240) -> pd.DataFrame:
+    """Time from the decay knee to EOL, for devices with a known EOL.
 
+    The knee is the point where the 30-day slope has steepened to twice the
+    trailing 180-day slope. That interval is the window the model must
+    actually resolve - anything earlier is plateau.
+    """
+    eol_of = dict(zip(truth["device_id"], truth["eol_time"]))
     rows = []
-    eol = labels.set_index("battery_id")["eol_time"]
-    for b, g in ts.groupby("battery_id"):
-        if b not in eol.index or pd.isna(eol[b]):
+    for device_id, g in metrics.groupby("device_id", observed=True):
+        eol = eol_of.get(device_id)
+        if pd.isna(eol):
             continue
-        g = g.sort_values("timestamp")
-        t0 = g["timestamp"].iloc[0]
-        th = ((g["timestamp"] - t0) / pd.Timedelta(hours=1)).to_numpy()
-        v = g["voltage"].to_numpy()
-        knee_time = None
-        # weekly scan is enough resolution for a months-long knee window
-        for cut in pd.date_range(t0 + pd.Timedelta(days=long_days),
-                                 g["timestamp"].iloc[-1], freq="7D"):
-            cut_h = (cut - t0) / pd.Timedelta(hours=1)
-            recent = (th > cut_h - short_days * 24) & (th <= cut_h)
-            longw = (th > cut_h - long_days * 24) & (th <= cut_h)
-            s_short = _theil_sen_slope(th[recent], v[recent])
-            s_long = _theil_sen_slope(th[longw], v[longw])
-            if (np.isfinite(s_short) and np.isfinite(s_long) and s_long < 0
-                    and s_short / s_long > ratio_threshold):
-                knee_time = cut
-                break
-        rows.append({
-            "battery_id": b,
-            "knee_time": knee_time,
-            "knee_to_eol_days": ((eol[b] - knee_time) / pd.Timedelta(days=1)
-                                 if knee_time is not None else np.nan),
-        })
+        s = g.set_index("end_time")["voltage"].sort_index()
+        daily = s.resample("D").median().dropna()
+        # metrics timestamps are naive, ground-truth EOL is UTC-aware
+        if daily.index.tz is None:
+            daily.index = daily.index.tz_localize("UTC")
+        window = daily[daily.index <= eol]
+        if len(window) < lookback_days // 2:
+            continue
+        short = window.diff().rolling(30).mean()
+        long = window.diff().rolling(180).mean()
+        steep = (short < 2 * long) & long.notna() & (long < 0)
+        if not steep.any():
+            continue
+        knee = steep[steep].index[0]
+        rows.append({"device_id": device_id,
+                     "knee_to_eol_days": (eol - knee) / pd.Timedelta(days=1)})
     return pd.DataFrame(rows)
 
 
-def write_audit_report(data: RawData, out_path: str | Path | None = None) -> Path:
-    base = load_config("base")
-    out = Path(out_path or Path(base["paths"]["reports_dir"]) / "data_audit.md")
-    out.parent.mkdir(parents=True, exist_ok=True)
+def _fmt(series: pd.Series, digits: int = 3) -> str:
+    return series.describe(percentiles=[0.05, 0.5, 0.95]).round(digits).to_string()
 
-    train, ev, loc = data.train, data.evaluation, data.locations
-    lines = ["# Data Audit", ""]
 
-    lines += ["## Schema as loaded", "",
-              f"- train: {dict(train.dtypes.astype(str))}",
-              f"- evaluation: {dict(ev.dtypes.astype(str))}",
-              f"- locations: {dict(loc.dtypes.astype(str))}",
-              f"- travel matrix shape: {data.travel_minutes.shape}", ""]
-    if data.issues:
-        lines += ["## Structural issues", ""] + [f"- {i}" for i in data.issues] + [""]
+def write_audit_report(data: RawData, path: str | Path | None = None) -> Path:
+    path = Path(path) if path else REPORTS_DIR / "data_audit.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    lines += ["## Counts", "",
-              f"- train batteries: {train['battery_id'].nunique()}",
-              f"- evaluation batteries: {ev['battery_id'].nunique()}",
-              f"- buildings: {loc['building_id'].nunique()}",
-              f"- rooms: {loc['room_id'].nunique()}",
-              f"- batteries per room: {loc.groupby(['building_id', 'room_id']).size().describe().to_dict()}",
-              ""]
+    m, dev, eol = data.metrics, data.devices, data.eol
+    truth = ground_truth_eol(m, dev, eol)
+    per_device = m.groupby("device_id", observed=True).size()
+    life = ((truth["eol_time"] - dev.set_index("device_id")
+             .loc[truth["device_id"], "start_time"].to_numpy())
+            / pd.Timedelta(days=1)).dropna()
+    confound = temperature_confound(m)
+    knees = knee_windows(m, truth)
+    agreement = threshold_agreement(m, eol, thresholds=(2.35, 2.40, 2.42, 2.45, 2.50))
 
-    lines += ["## Sampling gaps (hours)", "", "```",
-              gap_distribution(train).to_string(), "```", ""]
+    install = dev.copy()
+    install["start_time"] = pd.to_datetime(install["start_time"], utc=True)
+    spread = (install.groupby("building_id")["start_time"]
+              .agg(lambda s: (s.max() - s.min()) / pd.Timedelta(days=1)))
 
-    spans = (ev.groupby('battery_id')['timestamp'].agg(['min', 'max'])
-               .assign(span_days=lambda d: (d['max'] - d['min']) / pd.Timedelta(days=1)))
-    lines += ["## Evaluation truncation shape (observed span, days)", "", "```",
-              spans['span_days'].describe(percentiles=[0.1, 0.25, 0.5, 0.75, 0.9]).to_string(),
-              "```", ""]
-
-    confound = temperature_confound(train)
-    if not confound.empty:
-        lines += ["## Seasonal confound: voltage ~ temperature (per battery)", "", "```",
-                  confound[["coef_v_per_degC", "r2"]].describe().to_string(), "```", "",
-                  "If coef is materially non-zero, raw-voltage features are partly a "
-                  "thermometer — residualized features are mandatory.", ""]
-
-    out.write_text("\n".join(lines), encoding="utf-8")
-    return out
+    lines = [
+        "# Phase 1 - data audit",
+        "",
+        "Generated by `python -m batteryswap.cli audit` from the official "
+        "release (licensed; never committed).",
+        "",
+        "## Shape",
+        "",
+        f"- metrics: **{len(m):,} rows**, {m['device_id'].nunique()} devices, "
+        f"{m['end_time'].min()} .. {m['end_time'].max()}",
+        f"- devices: **{len(dev)}**, **{dev['building_id'].nunique()} buildings**, "
+        f"{dev['room_id'].nunique()} rooms",
+        f"- devices per building: min {dev.groupby('building_id').size().min()}, "
+        f"median {dev.groupby('building_id').size().median():.0f}, "
+        f"max **{dev.groupby('building_id').size().max()}** (heavily imbalanced)",
+        f"- devices per room: min {dev.groupby(['building_id', 'room_id']).size().min()}, "
+        f"median {dev.groupby(['building_id', 'room_id']).size().median():.0f}, "
+        f"max {dev.groupby(['building_id', 'room_id']).size().max()}",
+        f"- rows per device: min {per_device.min():,}, median {per_device.median():,.0f}, "
+        f"max {per_device.max():,}",
+        f"- nulls: {int(m[['voltage', 'temperature']].isna().any(axis=1).sum())} rows "
+        f"with a missing voltage or temperature",
+        "",
+        "The FAQ advertised ~200 buildings and a few thousand devices; the "
+        "release is **24 buildings / 461 devices**. Sizing assumptions built on "
+        "the FAQ do not hold.",
+        "",
+        "## Sampling regularity",
+        "",
+        "```",
+        gap_distribution(m).round(3).to_string(),
+        "```",
+        "",
+        "## Censoring - the dominant structural fact",
+        "",
+        f"- EOL recorded in `eol_times.csv`: **{int((~eol['censored']).sum())} / {len(eol)} "
+        f"({(~eol['censored']).mean():.1%})**",
+        f"- ground truth after adding threshold crossings: "
+        f"{int((~truth['censored']).sum())} devices "
+        f"({', '.join(f'{k}={v}' for k, v in truth['source'].value_counts().items())})",
+        "",
+        "**82 % of devices never fail in the data.** Any approach that drops "
+        "censored devices trains on a biased sixth of the fleet; any approach "
+        "that assumes they all fail invents failures the voltage does not show.",
+        "",
+        "### Lifetime distribution (devices with a known EOL, days)",
+        "",
+        "```",
+        _fmt(life, 1),
+        "```",
+        "",
+        "## Calibrating the EOL threshold against the recorded labels",
+        "",
+        "The official EOL rule was never published. Tier 2 of the ground truth "
+        "(see `labels.py`) uses a sustained crossing of a voltage threshold on "
+        "a 24 h rolling median; the constant is chosen by measurement, not "
+        "intuition:",
+        "",
+        "```",
+        agreement.round(3).to_string(index=False),
+        "```",
+        "",
+        "**2.42 V** is the least biased (median error -0.7 d) and the tightest "
+        "(MAD 10.1 d), while declaring only 13 extra unlabelled devices dead. "
+        "That is the value `labels.FAILURE_VOLTAGE` carries.",
+        "",
+        "## The seasonal confound",
+        "",
+        "Per-device OLS of voltage on temperature:",
+        "",
+        "```",
+        _fmt(confound["coef_v_per_degC"], 5),
+        "```",
+        "",
+        f"Median R^2 {confound['r2'].median():.3f}; "
+        f"{(confound['coef_v_per_degC'] > 0).mean():.0%} of devices have a "
+        "positive coefficient. Voltage rises in warm months and falls in cold "
+        "ones, so **raw voltage is partly a thermometer** - which is why "
+        "`features.py` ships residualised voltage and slope, and why labels are "
+        "defined on a 24 h median rather than raw samples.",
+        "",
+        "## Knee to EOL - the window the model must resolve",
+        "",
+        "```",
+        _fmt(knees["knee_to_eol_days"], 1) if len(knees) else "no knees detected",
+        "```",
+        "",
+        "⚠️ Read this one with suspicion: a median of ~594 days from knee to EOL "
+        "is most of a device's life, which means the `short < 2 * long` trigger "
+        "is firing on ordinary plateau decay rather than on a genuine knee. It "
+        "is reported because it was measured, not because it is trusted - the "
+        "detector needs a steeper criterion before this number means anything. "
+        "Nothing downstream depends on it; the model reads the knee through "
+        "`knee_slope_ratio` and `dist_below_plateau` instead.",
+        "",
+        "## Installation clustering",
+        "",
+        "Spread of installation dates within a building (days):",
+        "",
+        "```",
+        _fmt(spread, 1),
+        "```",
+        "",
+        "## Cutoff structure - no estimation needed",
+        "",
+        f"- **{len(data.scenarios)} scenarios**, weekly starts "
+        f"{data.scenarios[0].start_time.date()} .. {data.scenarios[-1].start_time.date()}",
+        f"- planning window **{data.scenarios[0].horizon_days} days**",
+        "- The scenarios *are* the evaluation cutoffs, so training examples are "
+        "built at exactly those timestamps. The brief's instruction to estimate "
+        "the truncation distribution from evaluation series lengths does not "
+        "apply to this release - the distribution is given.",
+        "",
+        "## Consequence for the planner",
+        "",
+        "Under the ground truth above, a median of **~10 devices fail inside any "
+        "given 42-day window** (range 2-20) out of 461. The crew budget is 24 "
+        "h/week. So the problem is not 'schedule everything efficiently' - it is "
+        "**identify the handful of devices that will fail, and batch their "
+        "visits**. Replacing a healthy device is pure waste: it pays early "
+        "penalty and consumes the hour budget.",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
