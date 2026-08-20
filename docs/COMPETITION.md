@@ -83,3 +83,63 @@ is already built and tested against synthetic data.
    sit above q\*. Re-measure before trusting any q.
 8. Wire the CLI pipeline commands (`features`/`train`/…/`submit`) to the real
    data path; the synthetic dry run stays synthetic by design.
+
+## The official code — where it actually lives (found 2026-08-20)
+
+Not in the data release. The pieces:
+
+| What | Where |
+|---|---|
+| Dataset (gated) | <https://huggingface.co/datasets/batteryswapaichallenge/BatterySwapAI-2026-Public> |
+| **Example repo + submission harness** (MIT) | <https://huggingface.co/batteryswapaichallenge/BatterySwapAI2026-Example> |
+| **The scorer** | PyPI package `batteryswap_public` (listed in the example repo's `requirements.txt`) |
+
+```bash
+pip install batteryswap_public fastparquet structlog pydantic-settings
+```
+
+Modules that matter: `batteryswap_public.evaluate.evaluate_plan` (the cost
+function), `.utils.load_dataset` / `.iterate_scenarios` (loading + truncation),
+`.utils.make_submissions` (builds submission.csv from a Planner),
+`.interfaces.Planner` (the ABC to implement), `.metric.compute` (the
+HuggingFace entry point).
+
+### Dataset layout the official loader expects
+
+One directory per split — the flat files from the release are **one split**:
+
+```
+<root>/<split>/devices.csv
+<root>/<split>/eol_times.csv
+<root>/<split>/battery_metrics.parquet
+<root>/<split>/scenarios.json
+```
+
+`metric.compute` scores `public` and `private` splits; scoring reports
+`total_time` — the mean of `total_cost` across a split's scenarios.
+
+### How submission actually works
+
+1. Implement `batteryswap_public.interfaces.Planner`.
+2. Pickle it into the model repo (the example uses
+   `batteryswap_example/planners/best.pickle`).
+3. `script.py` loads the pickle and calls `make_submissions`, which writes
+   `submission.csv`.
+4. Commit and push to your HuggingFace **model** repo, then use *New
+   submission* in the competition app.
+
+Local check, mirroring the submission machine:
+
+```bash
+docker run --name batteryswapai -v ./dataset:/tmp/data batteryswapai-2026-example bash -c "/app/env/bin/python3 script.py && /app/env/bin/python3 -m batteryswap_public.metric"
+```
+
+### Rules the evaluator enforces on a plan
+
+- every battery exactly once, no duplicates, no extras
+- `day` must be datetime, **date-only** (no time of day), non-decreasing
+- nothing before `start_time`; rows after `start_time + planning_window_days`
+  are cut (this is how you skip a battery)
+- a plain `RangeIndex`
+- **row order inside a day is the route** — a building change is charged
+  whenever consecutive rows differ

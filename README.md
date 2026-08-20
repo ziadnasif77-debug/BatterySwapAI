@@ -31,24 +31,56 @@ python -m batteryswap.cli status     # what is still unresolved and why
 make submit                          # raw official data -> submissions/submission.csv
 ```
 
-### ⛔ The exception you must read before trusting any number here
+### The official evaluator — found, and now the objective
 
-The official **scoring code never shipped with the data**, and the brief
-(§18) forbids reimplementing it. With the deadline one day out, the project
-owner explicitly authorised the fallback, so
-[`src/batteryswap/scoring.py`](src/batteryswap/scoring.py) is **our
-reimplementation of the cost function, not the official scorer**. Its
-constants are certain — read straight from the official file — but eight
-assumptions (A1–A8, listed in that module) are ours, and each one can move
-the score. The most consequential is **A1**: the exchange rate between
-technician-hours and penalty units is never stated in the release, and we
-charge 1 cost unit per hour.
+For most of this project the official scoring code was missing: it did not
+ship with the 2026-08-14 data release, and the work ran against a
+reimplementation. **It has since been located.** It is the PyPI package
+`batteryswap_public`, pulled in by the
+[official example repository](https://huggingface.co/batteryswapaichallenge/BatterySwapAI2026-Example)
+(MIT). [`evaluate.py`](src/batteryswap/evaluate.py) now imports and calls it
+directly, as §5.3 always required, and every number below comes from it.
 
-Consequences, stated plainly: every cost figure below is *self-consistent*,
-not *externally validated*; the optimizer is tuned against our own objective;
-and `tests/test_evaluator_agreement.py` — the check that would catch a
-mismatch — still cannot run. If the official scorer appears, import it in
-`evaluate.py`, diff it on ≥1000 plans, and re-tune before trusting anything.
+```bash
+pip install batteryswap_public fastparquet structlog pydantic-settings
+python -m batteryswap.cli official        # train, plan, score against the real scorer
+```
+
+The reimplementation survives as [`scoring.py`](src/batteryswap/scoring.py),
+confined to the synthetic dry run. Checked against the official source, it was
+right about the things that were documented and wrong about the things that
+were not:
+
+| Assumption | Verdict |
+|---|---|
+| A1 — 1 cost unit per technician-hour | ✅ correct (the official field docs say *"In hour-equivalent"*) |
+| A2 — each day starts and ends at the depot | ✅ correct |
+| A6 — unobserved EOL = last data + 30 d | ✅ correct |
+| A4 — overtime | ❌ official adds `factor × overtime` **on top of** the hours |
+| A3 — room/building overheads | ❌ official charges per **transition**, not per visit |
+| A8 — day indexing | ❌ days are **dates**, not 1-based integers |
+| A9 — late penalty capped at the window edge | ❌ **uncapped** in both directions |
+
+`tests/test_evaluator_agreement.py` — §16.4, dormant for the whole project —
+is finally live, and measures that divergence instead of assuming it away.
+
+### The submission is a Planner, not a CSV
+
+The official harness (`batteryswap_public.utils.make_submissions`) calls
+`planner.plan(battery_data, locations, travel_costs, settings)` once per
+scenario and assembles `submission.csv` itself. So the deliverable is a
+**pickled `Planner`** committed to a HuggingFace model repo, not a file we
+write. Two consequences shape
+[`planner.py`](src/batteryswap/planner.py):
+
+- **No leakage is possible.** The official `iterate_scenarios` truncates each
+  series at the scenario start and drops already-dead devices before the
+  planner ever sees them.
+- **Every battery must appear exactly once**, with a real date. "Skipping" a
+  battery means giving it a date past the planning window, which the evaluator
+  cuts. There is no omit option — and a battery with a *recorded* EOL inside
+  the window that goes unscheduled triggers a forced emergency visit: its own
+  day, its own round trip, plus late penalty.
 
 ### What the official release changed about the brief
 
@@ -144,105 +176,90 @@ make sweep         # selection-bar sweep against the scorer
 
 ## Results
 
-Backtest over **all 48 official scenarios**, scored with
-[`scoring.py`](src/batteryswap/scoring.py) — read the exception above before
-reading the numbers.
+Scored by the **official evaluator** (`batteryswap_public.evaluate`) over all
+48 scenarios in the released split. Its metric is `total_cost` in
+hour-equivalents; the competition reports the mean across scenarios.
 
-| Plan | Total cost | vs do-nothing |
-|---|---:|---:|
-| Do nothing | 1,168,360 | — |
-| **Ours** (B3 + CQR + decision layer + batching + ALNS) | **156,067** | **−86.6 %** |
-| Hindsight oracle (true EOL, same planner) | 44,359 | −96.2 % |
+| Plan | Mean cost/scenario | |
+|---|---:|---|
+| No planning (nothing scheduled in-window) | 3,324.7 | forced emergency visits only |
+| **Ours** | **1,241.2** | **−62.7 %**, wins 45 of 48 scenarios |
+| Hindsight oracle (true EOL, same batching) | ~409 | measured on the first 6 scenarios |
 
-Reproduce: `make submit` → `submissions/submission.csv` (4,496 rows),
-`reports/score_breakdown.csv` per scenario.
+Reproduce: `python -m batteryswap.cli official` →
+`reports/official_scores.csv` + `artifacts/planner.pickle`.
+
+### §11 confirmed: the swept q sits far above the theoretical one
+
+The newsvendor identity gives `q* = 0.5/(0.5+10) = 0.0476`. Swept against the
+official scorer:
+
+| q | 0.048 (q\*) | 0.10 | 0.15 | **0.20** | 0.25 | 0.30 | 0.45 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| cost | 1,307 | 1,120 | 1,084 | **905** | 1,002 | 1,205 | 2,201 |
+
+The optimum is **4× the theoretical value** — exactly the effect §11 predicts
+once trips are shared, and something the pre-release synthetic rehearsal could
+not demonstrate because its fleet had no travel pressure. Batching window and
+voltage gate were swept the same way (14 days, 0.20 V).
 
 ### What actually moved the number
 
-Four changes, in the order they were measured. Each cost figure is the total
-across all 48 scenarios:
-
-| # | Change | Cost | Why |
-|---|---|---:|---|
-| 0 | first end-to-end run | 3,212,961 | worse than doing nothing |
-| 1 | drop mechanically-shrinking censored targets | 2,107,349 | targets computed as `last_observed + grace − cutoff` shrink as the cutoff advances, teaching the model that **every device dies when the dataset ends** |
-| 2 | charge downtime **inside the window only** | 574,856 | a device that died 300 days before the window was being charged 3,000+ to replace on day 1, so no plan could beat inaction (assumption A9) |
-| 3 | let the model see already-dead devices + hard override when observed below threshold at the cutoff | 202,296 | it had never seen a dead device, so it scheduled them weeks late — **93 % of the remaining cost was late penalty** |
-| 4 | sweep the selection bar | **156,067** | the §11 sweep, in the form this problem takes |
-
-An intermediate attempt — training only on devices that eventually failed —
-made things *worse* (3,340,042): the model never saw a long survivor and
-predicted short for everything. The fix that worked uses the fact that a
-censored device observed alive for a **full horizon** after the cutoff
-*provably* did not fail in that window; that is a real label, not an
-assumption. Rows where the remaining observation is shorter than the horizon
-are genuinely unknown and are dropped. See
-[`pipeline.training_targets`](src/batteryswap/pipeline.py).
-
-### Selection-bar sweep
-
-The bar is `gain > marginal_work_cost × (1 − slack)`. Swept against the
-scorer on every 2nd scenario:
-
-| slack | −14 | −13 | **−12** | −11 | −10 | −9 |
-|---|---:|---:|---:|---:|---:|---:|
-| cost | 75,471 | 76,310 | **75,463** | 75,653 | 76,906 | 77,994 |
-
-Flat between −14 and −11, so **−12** is a stable choice rather than a
-knife-edge fit. Note the bar sits far above the naive break-even: with
-lateness at 20× earliness and labour cheap under A1, expected-value selection
-alone replaces far too much.
+| Fix | Effect | Why |
+|---|---|---|
+| Skip **stale** devices | −27,700 on one scenario | a device that stopped reporting has assumed EOL `last data + 30 d`, often already past; swapping it is pure late penalty while leaving it alone is free. `locations.end_time` makes this exact, not inferred |
+| **Voltage gate** (0.20 V above threshold) | one late scenario went from 260 swaps to a handful | only a battery that actually crosses the failure voltage earns a *recorded* EOL, and only a recorded EOL can force an emergency visit. The regression target cannot see this: the evaluator's assumed EOL creeps toward the cutoff as the year advances, making healthy batteries look near death |
+| **Cap on swaps per scenario** | fixed the 3 scenarios that lost to doing nothing | at most 19 batteries ever hold a recorded EOL inside a window — a structural bound the model has no way to learn |
+| Sort rows by building/room within a day | — | row order *is* the route; the evaluator charges a building change on every consecutive pair that differs |
 
 ### Diagnostics (they explain the cost, they do not select)
 
-Conformal calibration is close to nominal on held-out buildings — 0.05→0.075,
-0.10→0.105, 0.25→0.252, 0.50→0.500, 0.75→0.750, 0.90→0.900 — while median
-MAE is 42 days. **A model with worse MAE produced the cheaper schedule**:
-change #3 raised MAE from 29 to 42 days (it added hard-to-fit already-dead
-rows) and cut cost by 64 %. That is the brief's §13 prediction, observed.
+Calibrated coverage on held-out buildings tracks nominal closely (0.05→0.075,
+0.10→0.105, 0.25→0.252, 0.50→0.500, 0.75→0.750, 0.90→0.900) at a median MAE
+of 29 days. Note that MAE barely moved across the fixes above while cost fell
+by more than half — the §13 point, observed again on real data: **accuracy
+explains the cost, it does not select the plan.**
 
 ### What the data audit found
 
-`make audit` → [reports/data_audit.md](reports/data_audit.md). The two
-protective audits:
+`make audit` → [reports/data_audit.md](reports/data_audit.md).
 
 - **Seasonal confound is real and large.** Median voltage-on-temperature
   coefficient **+0.0063 V/°C**, positive for **90 %** of devices. Across a
-  30 °C Norwegian swing that is ~0.19 V — comparable to the entire margin
-  between plateau and failure. Raw voltage is partly a thermometer, which is
-  why features carry residualised voltage and slope.
-- **Knee detection is reported but not trusted** — the current trigger fires
-  on ordinary plateau decay. Documented in the report rather than quietly
-  dropped; nothing downstream depends on it.
+  30 °C Norwegian swing that is ~0.19 V — comparable to the whole margin
+  between plateau and failure.
+- **82 % of devices are right-censored** (only 82 of 461 carry a recorded EOL).
+- **Knee detection is reported but not trusted** — the current trigger fires on
+  ordinary plateau decay. Documented rather than quietly dropped; nothing
+  downstream depends on it.
 
 ## Known limitations / outstanding UNKNOWNs
 
-Ranked by how much they could invalidate the results above.
-
-1. **⛔ The cost function is ours.** The official scorer never shipped. Every
-   cost figure is self-consistent, not externally validated, and the optimizer
-   is tuned against our own objective. Assumption **A1** (1 cost unit per
-   technician-hour) has no basis in the release at all — it is the exchange
-   rate between the two halves of the objective, and a different rate changes
-   which trips are worth taking. `tests/test_evaluator_agreement.py` still
-   cannot run.
-2. **The submission format is a guess.** Columns `scenario,day,device` with
-   1-based days (A8). The FAQ describes "an ordered work plan (CSV)" and
-   nothing more precise. If the real header differs, the file is wrong even if
-   the plan is right — fix `pipeline.submission_frame`.
-3. **The EOL rule is inferred, not given.** 2.42 V is calibrated against 82
+1. **Only one split is available to us.** The release gave a flat set of files
+   — one split. The official metric scores `public` and `private`; our numbers
+   are a backtest on what we have, so they are an estimate of leaderboard
+   performance, not a leaderboard result. ⛔ §15 still applies: do not tune
+   against the public board when it appears.
+2. **The submission has not been run through the official Docker image.** The
+   plan validates against `check_plan_valid` and scores through
+   `evaluate_plan`, but the end-to-end `script.py` + `make_submissions` path in
+   the competition container is untested here. Do that before submitting.
+3. **The swap cap (25) is a structural constant, not a learned quantity.** It
+   is justified by the observed maximum of 19 recorded EOLs per window in this
+   split; a fleet with a different failure rate would need it re-derived.
+4. **The EOL threshold (2.42 V) is inferred.** Calibrated against the 82
    recorded labels, but only 41 % of crossings land within 7 days of their
-   label. Ground truth for the other 379 devices inherits that uncertainty.
-4. **The censored-survivor target is a lower bound**, so long RULs are
-   understated. Harmless for a 42-day decision, wrong for lifetime estimates.
-5. **B4 (Weibull AFT) is implemented but unused in the shipped path** —
-   handling censoring natively is the principled fix for #4 and was cut for
-   time, not for evidence. Same for CP-SAT and SAA on the official path.
+   label. It feeds `labels.py` ground truth and the planner's voltage gate.
+5. **Survival modelling was cut for time.** B4 (Weibull AFT) is implemented but
+   unused on the official path; it is the principled way to handle the 82 %
+   censoring that the current lower-bound target handles crudely. So were
+   CP-SAT and SAA.
 6. **Grouped CV is not run on the official data.** Calibration holds out
    buildings, but the full per-fold variance table (`make cv`) still runs on
    synthetic data only.
 7. Six entries remain in [`configs/unknowns.yaml`](configs/unknowns.yaml);
-   `python -m batteryswap.cli status` prints them.
+   `python -m batteryswap.cli status` prints them. Several are now answerable
+   from the official source and simply have not been transcribed back.
 
 ## License
 

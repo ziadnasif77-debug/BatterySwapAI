@@ -4,6 +4,15 @@ data/raw/*
 data/interim/
 data/processed/
 
+# Official competition code — cloned, not vendored (MIT, but it is theirs and
+# it is a git repo of its own). See docs/COMPETITION.md for the clone command.
+docs/official/evaluator/
+
+# Trained artifacts: regenerable, and the boosters are fitted on the licensed
+# dataset, so they do not belong in a public repo. The competition wants the
+# pickle in the HuggingFace MODEL repo, not here.
+artifacts/
+
 # Pipeline outputs
 predictions/
 decision/

@@ -106,7 +106,10 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
 
     # --- temperature confound removal (§8, "the important group") ------------
     mask = np.isfinite(v) & np.isfinite(temp)
-    if mask.sum() > 24:
+    # A stuck temperature sensor gives zero variance, and linregress raises on
+    # it. Real fleets have such devices, so fall back rather than crash the
+    # whole plan.
+    if mask.sum() > 24 and np.ptp(temp[mask]) > 1e-9:
         beta, alpha, *_ = stats.linregress(temp[mask], v[mask])
         resid = v - (alpha + beta * temp)
         f["temp_coeff"] = float(beta)

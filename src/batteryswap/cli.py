@@ -258,6 +258,107 @@ def cmd_sweep(args) -> int:
     return 0
 
 
+# --- official evaluator path ------------------------------------------------
+
+def _official_targets(meta, devices_csv, eol_csv, grace=30.0):
+    """The evaluator's own ground truth: recorded EOL, else last data + grace."""
+    import pandas as pd
+
+    dev = pd.read_csv(devices_csv, index_col=0)
+    eol = pd.read_csv(eol_csv)
+    eol["end_time"] = pd.to_datetime(eol["end_time"], format="ISO8601")
+    last = dict(zip(dev.device_id,
+                    pd.to_datetime(dev.end_time, format="ISO8601").dt.tz_localize(None)))
+    lab = dict(zip(eol.device_id, eol.end_time))
+    official = {d: (lab[d] if pd.notna(lab.get(d))
+                    else (last[d] + pd.Timedelta(days=grace)).normalize())
+                for d in dev.device_id}
+    cutoff = pd.to_datetime(meta["cutoff"]).dt.tz_localize(None)
+    y = pd.Series([(official[d] - c) / pd.Timedelta(days=1)
+                   for d, c in zip(meta.device_id.astype(str), cutoff)], index=meta.index)
+    groups = meta.device_id.astype(str).map(dict(zip(dev.device_id, dev.building_id)))
+    return y, groups
+
+
+def cmd_official(args) -> int:
+    """Train, plan, and score against the OFFICIAL evaluator."""
+    import pickle
+
+    import pandas as pd
+
+    from .evaluate import is_available, iter_problems, score_plan
+    from .pipeline import QUANTILES, train
+    from .planner import SKIP_DATE, BatterySwapPlanner
+
+    if not is_available():
+        print("The official evaluator (batteryswap_public) is not installed.",
+              file=sys.stderr)
+        print("  pip install batteryswap_public fastparquet structlog "
+              "pydantic-settings", file=sys.stderr)
+        return 1
+
+    X = pd.read_parquet("data/interim/X.parquet")
+    meta = pd.read_parquet("data/interim/meta.parquet")
+    y, groups = _official_targets(meta, "data/raw/devices.csv", "data/raw/eol_times.csv")
+    keep = (y > 0).to_numpy()
+
+    print(f"training B3 on {int(keep.sum()):,}/{len(X):,} rows against the "
+          f"evaluator's own EOL definition ...")
+    trained = train(X[keep], y[keep], groups[keep], seed=args.seed)
+    print(f"  MAE {trained.diagnostics['mae_days_calibrated']:.1f} d | "
+          f"pinball {trained.diagnostics['pinball_calibrated']:.2f}")
+
+    planner = BatterySwapPlanner(trained.model, trained.offsets, QUANTILES,
+                                 q=args.q, batch_window_days=args.batch,
+                                 voltage_margin=args.margin,
+                                 max_swaps=args.max_swaps)
+
+    rows = []
+    for i, problem in enumerate(iter_problems(args.split_path)):
+        if i % args.stride:
+            continue
+        plan = planner.plan(problem.timeseries, problem.locations,
+                            problem.travel_costs, problem.settings)
+        scores = score_plan(plan, problem)
+        push = pd.DataFrame({"day": [SKIP_DATE] * len(problem.locations),
+                             "battery": list(problem.locations["battery"])})
+        rows.append({"scenario": problem.name,
+                     "ours": scores.total_cost,
+                     "no_planning": score_plan(push, problem).total_cost,
+                     "early_swap": scores.early_swap, "late_swap": scores.late_swap,
+                     "travel": scores.travel, "overtime": scores.overtime,
+                     "weekly_limit": scores.weekly_limit,
+                     "daily_limit": scores.daily_limit,
+                     "in_window": int((plan["day"] <= problem.end_time).sum())})
+        print(f"  {problem.name}: {scores.total_cost:9,.1f}   "
+              f"(no planning {rows[-1]['no_planning']:9,.1f})")
+
+    frame = pd.DataFrame(rows)
+    Path("reports").mkdir(exist_ok=True)
+    frame.to_csv("reports/official_scores.csv", index=False)
+
+    ours, base = frame["ours"].mean(), frame["no_planning"].mean()
+    print("")
+    print("=== OFFICIAL SCORE (batteryswap_public.evaluate) ===")
+    print(f"  scenarios scored : {len(frame)}")
+    print(f"  no planning      : {base:12,.1f}")
+    print(f"  ours             : {ours:12,.1f}   ({(base - ours) / base:.1%} better)")
+    print(f"  components  early {frame['early_swap'].mean():8,.1f} | "
+          f"late {frame['late_swap'].mean():8,.1f} | "
+          f"travel {frame['travel'].mean():7,.1f} | "
+          f"overtime {frame['overtime'].mean():7,.1f}")
+    print(f"  config      q={args.q} batch={args.batch}d margin={args.margin}V "
+          f"cap={args.max_swaps}")
+    beat = int((frame["ours"] < frame["no_planning"]).sum())
+    print(f"  beats no-planning in {beat}/{len(frame)} scenarios")
+
+    Path(args.planner_out).parent.mkdir(parents=True, exist_ok=True)
+    with open(args.planner_out, "wb") as fh:
+        pickle.dump(planner, fh)
+    print(f"  wrote {args.planner_out} (pickle for the submission repo)")
+    return 0
+
+
 def _not_yet(phase: str):
     def handler(_args) -> int:
         print(f"'{phase}' is blocked: official competition files are not present. "
@@ -302,6 +403,17 @@ def main(argv: list[str] | None = None) -> int:
     sb.add_argument("--rebuild", action="store_true", help="rebuild cached features")
     sb.add_argument("--record", action="store_true")
     sb.set_defaults(fn=cmd_submit)
+
+    off = sub.add_parser("official", help="train, plan and score with the OFFICIAL evaluator")
+    off.add_argument("--split-path", default="data/raw/train")
+    off.add_argument("--seed", type=int, default=20260101)
+    off.add_argument("--q", type=float, default=0.20)
+    off.add_argument("--batch", type=float, default=14.0)
+    off.add_argument("--margin", type=float, default=0.20)
+    off.add_argument("--stride", type=int, default=1)
+    off.add_argument("--max-swaps", type=int, default=25, dest="max_swaps")
+    off.add_argument("--planner-out", default="artifacts/planner.pickle")
+    off.set_defaults(fn=cmd_official)
 
     sw = sub.add_parser("sweep", help="sweep the selection bar against the scorer")
     sw.add_argument("--values", default="-0.5,-0.25,0,0.25,0.5,0.75")

@@ -1,16 +1,32 @@
-"""OUR REIMPLEMENTATION OF THE COST FUNCTION - NOT THE OFFICIAL SCORER.
+"""SUPERSEDED: our reimplementation of the cost function. SYNTHETIC USE ONLY.
 
-The project brief (section 18) forbids reimplementing the scoring function;
-the official evaluator must be imported instead. That code did not reach us
-with the 2026-08-14 data release, and the user explicitly authorised this
-fallback so the pipeline could be finished before the deadline. This module
-therefore exists under an explicit, recorded exception - it is NOT compliant
-with the brief, and every number it produces is conditional on the
-assumptions listed below.
+⛔ Do not import this on the official path. The real scorer was located after
+this module was written - it is the PyPI package ``batteryswap_public``, pulled
+in by the official example repository's requirements - and ``evaluate.py`` now
+calls it directly, as section 5.3 always required. This module survives only
+because the synthetic dry run (``dryrun.py``) needs *a* cost model and must
+keep running without the licensed dataset.
 
-If the official scorer becomes available: import it in evaluate.py, diff it
-against this module on >=1000 random plans (tests/test_evaluator_agreement),
-and re-tune q. Do not assume agreement.
+Where it was right and wrong, checked line by line against the official source
+(``batteryswap_public/evaluate.py``):
+
+    A1 currency (1 unit per technician-hour)      CORRECT - the official field
+                                                  docs say "In hour-equivalent"
+    A2 each day starts and ends at the depot      CORRECT
+    A6 unobserved EOL = last data + grace days    CORRECT
+    A4 overtime                                   WRONG - the official scorer
+                                                  adds factor*overtime ON TOP
+                                                  of the hours; this adds 1x
+    A3 room/building overheads                    WRONG - official charges per
+                                                  TRANSITION, not per visit
+    A8 day indexing                               WRONG - days are DATES, not
+                                                  1-based integers
+    A9 late penalty capped at the window          WRONG - the official penalty
+                                                  is uncapped in both
+                                                  directions
+
+``tests/test_evaluator_agreement.py`` measures the resulting divergence rather
+than assuming it away.
 
 CONSTANTS (certain - read verbatim from data/raw/scenarios.json)
     time_per_battery_hours 0.25, time_per_room_change_hours 0.5,
