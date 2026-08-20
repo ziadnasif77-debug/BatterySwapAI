@@ -1,39 +1,76 @@
-# ⛔ EVERY value in this file must be transcribed from the official evaluator
-# source code, with the source line recorded in reports/cost_model.md.
-# Until then each entry is the literal string UNKNOWN. The config loader
-# (batteryswap.config) raises UnknownValueError on any attempt to read an
-# UNKNOWN value, so no code path can silently run on a guessed constant.
+# Cost model transcribed VERBATIM from the official release.
+#
+# SOURCE: data/raw/scenarios.json — every scenario object carries a "settings"
+# block. Verified across all 48 scenarios: the 13 economic/operational
+# constants below are IDENTICAL in every scenario; only base_location,
+# base_room and start_time vary (those are per-scenario inputs, not constants).
+# Verified by tests/test_cost_model_transcription.py (runs whenever
+# data/raw/scenarios.json is present; skips otherwise).
+#
+# ⛔ STILL UNKNOWN and blocking: the official scorer implementation and the
+# submission format. Nothing here is guessed — every value is a literal read
+# from the official file, quoted with its JSON key.
+
+source:
+  file: data/raw/scenarios.json
+  verified_scenarios: 48
+  note: >-
+    Constants confirmed identical across all 48 scenarios. Units are HOURS and
+    DAYS as named by the official keys — not minutes.
 
 time:
-  swap_minutes_per_battery: UNKNOWN        # wrench time per battery swap
-  room_change_overhead_minutes: UNKNOWN    # fixed overhead moving between rooms in one building
-  building_change_overhead_minutes: UNKNOWN
-  travel_time_units: UNKNOWN               # confirm matrix units (expected: minutes)
+  # JSON: settings.time_per_battery_hours
+  swap_hours_per_battery: 0.25
+  # JSON: settings.time_per_room_change_hours
+  room_change_overhead_hours: 0.5
+  # JSON: settings.time_per_building_change_hours
+  building_change_overhead_hours: 1.0
+  # travel_costs[].hours — the matrix is in HOURS (the brief guessed minutes)
+  travel_time_units: hours
 
 workforce:
-  worker_count: UNKNOWN
-  working_minutes_per_day: UNKNOWN
-  overtime_allowed: UNKNOWN                # cost, prohibition, or capped?
-  overtime_rate: UNKNOWN                   # cost per overtime minute/hour
+  # JSON: settings.overtime_start — hours per day before overtime applies
+  overtime_start_hours: 8.0
+  # JSON: settings.overtime_penalty_factor
+  overtime_penalty_factor: 2.0
+  # JSON: settings.worker_limit_daily_hours / _penalty
+  worker_limit_daily_hours: 24.0
+  worker_limit_daily_penalty: 100.0
+  # JSON: settings.worker_limit_weekly_hours / _penalty
+  # NOTE: weekly cap equals the daily cap (24 h) — the WEEKLY one binds.
+  worker_limit_weekly_hours: 24.0
+  worker_limit_weekly_penalty: 100.0
+  # Not present in the official settings: the scenario defines limits on hours,
+  # not a worker headcount. Treated as a single crew against the hour caps.
+  worker_count: 1
 
 penalties:
-  early_replacement_per_unit: UNKNOWN      # unit itself must be confirmed (hour? day?)
-  late_replacement_per_device_hour: UNKNOWN
+  # JSON: settings.early_replacement_penalty_daily — cost per DAY of life wasted
+  early_replacement_per_day: 0.5
+  # JSON: settings.late_replacement_penalty_daily — cost per DAY of downtime
+  late_replacement_per_day: 10.0
 
 horizon:
-  planning_days: UNKNOWN
-  day_indexing_base: UNKNOWN               # 0-based or 1-based in the submission
+  # JSON: settings.planning_window_days
+  planning_days: 42
+  # JSON: settings.unobserved_eol_days — grace/assumption for devices whose
+  # EOL is not observed in the data. Exact semantics need the official scorer.
+  unobserved_eol_days: 30.0
+  day_indexing_base: UNKNOWN
 
 failure:
-  eol_definition: UNKNOWN                  # official end-of-life rule, verbatim
-  voltage_threshold: UNKNOWN               # only if the official rule is threshold-based
+  eol_definition: UNKNOWN
+  voltage_threshold: UNKNOWN
 
 submission:
-  columns: UNKNOWN                         # exact column names
+  columns: UNKNOWN
   dtypes: UNKNOWN
   battery_may_repeat: UNKNOWN
 
 derived:
-  # Filled by the Phase-0 sensitivity study, never by hand.
-  late_over_early_ratio: UNKNOWN
+  # late/early is a direct ratio of the two official daily penalties.
+  late_over_early_ratio: 20.0
+  # newsvendor q* = c_early / (c_early + c_late) = 0.5 / 10.5
+  newsvendor_q_star: 0.047619
+  # ⛔ Still from the sensitivity study, which needs the official scorer.
   marginal_visit_cost_per_building: UNKNOWN

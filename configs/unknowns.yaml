@@ -11,9 +11,9 @@
 
 unknowns:
   official_dataset_files:
-    value: UNKNOWN
-    source: "Official competition data release (data/raw/)"
-    status: unresolved
+    value: "battery_metrics.parquet, devices.csv, eol_times.csv, scenarios.json"
+    source: "official release 2026-08-14"
+    status: resolved
     blocks: "Everything: audit, labels, features, models, optimizer."
     note: "Release date announced: 2026-08-14. Submission deadline 2026-08-21."
 
@@ -39,27 +39,27 @@ unknowns:
     blocks: "labels.py (if threshold-based); distance-to-threshold features."
 
   swap_minutes_per_battery:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "0.25 hours (time_per_battery_hours)"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Routing feasibility; opportunistic-swap rule."
 
   room_change_overhead_minutes:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "0.5 hours (time_per_room_change_hours)"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Per-day sequencing."
 
   building_change_overhead_minutes:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "1.0 hours (time_per_building_change_hours)"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Per-day sequencing."
 
   travel_time_units:
-    value: UNKNOWN
-    source: "Official dataset documentation"
-    status: unresolved
+    value: "hours (travel_costs[].hours) — NOT minutes"
+    source: "scenarios.json travel_costs"
+    status: resolved
     blocks: "Routing."
 
   worker_count:
@@ -67,39 +67,49 @@ unknowns:
     source: "Official rules / evaluator constants"
     status: unresolved
     blocks: "Assignment; feasibility test."
+    note: >-
+      The scenarios constrain HOURS (24/day, 24/week), never a headcount. Either
+      the crew is a single resource or headcount is implicit in the hour budget.
+      Needs the official scorer to settle; cost_model.yaml assumes 1 crew.
 
   working_minutes_per_day:
-    value: UNKNOWN
-    source: "Official rules / evaluator constants"
-    status: unresolved
+    value: "overtime_start=8h/day; hard caps 24h/day and 24h/week"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Day-cap routing; overtime accounting."
-    note: "FAQ: overtime applies beyond an 8-hour workday => expect 480; verify in evaluator."
+    note: >-
+      Confirmed 8h/day overtime threshold, but expressed in HOURS not minutes,
+      and with additional hard caps (24h/day, 24h/week) the FAQ never mentioned.
 
   overtime_rule_and_rate:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "factor 2.0 beyond 8h/day; flat 100 penalty per daily/weekly cap breach"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Objective inside the optimizer."
     note: "FAQ confirms overtime is a cost (not prohibition); rate unspecified."
 
   early_replacement_penalty:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "0.5 per DAY (early_replacement_penalty_daily)"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Decision layer g_b(d); newsvendor q*."
-    note: "FAQ: units are 'per missed hour of ideal lifetime'."
+    note: >-
+      ⚠ The FAQ said "per missed HOUR of ideal lifetime"; the released file says
+      per DAY. Source-of-truth rule (§0): the file wins.
 
   late_replacement_penalty:
-    value: UNKNOWN
-    source: "Official evaluator constants"
-    status: unresolved
+    value: "10.0 per DAY (late_replacement_penalty_daily) — ratio 20:1"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Decision layer g_b(d); newsvendor q*."
-    note: "FAQ: 'per device-hour of downtime; expected to be larger' than early."
+    note: >-
+      ⚠ FAQ said "per device-HOUR of downtime"; released file says per DAY.
+      FAQ was right that it is larger: 20x early.
 
   planning_horizon_days:
-    value: UNKNOWN
-    source: "Official rules"
-    status: unresolved
+    value: "42 (planning_window_days)"
+    source: "scenarios.json settings"
+    status: resolved
     blocks: "Candidate-day grid; schedule construction."
 
   submission_format:

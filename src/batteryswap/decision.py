@@ -6,8 +6,8 @@ computed numerically from calibrated quantiles. Output: an
 [n_batteries x n_days] expected-penalty matrix, fully determined before any
 scheduling happens.
 
-⛔ c_early / c_late come from configs/cost_model.yaml and raise until
-transcribed from the official evaluator.
+c_early / c_late come from configs/cost_model.yaml, transcribed from the
+official release (scenarios.json): 0.5 and 10.0 cost per DAY respectively.
 """
 
 from __future__ import annotations
@@ -62,9 +62,11 @@ def cost_curve(fail_hours_samples: np.ndarray, candidate_days: np.ndarray,
                c_early: float, c_late: float) -> np.ndarray:
     """Expected penalty per candidate replacement day for one battery.
 
-    NOTE: the early/late penalty UNITS (per hour? per day? asymmetric shape?)
-    must be verified against the official evaluator in Phase 0 — this
-    implementation assumes linear per-hour penalties on both sides until then.
+    `fail_hours_samples` and the day grid are in hours/days; `c_early` and
+    `c_late` are therefore per-HOUR rates (callers divide the official
+    per-day constants by 24). The official penalties are linear on both
+    sides — confirmed only as far as the constant names go; the exact
+    functional form still needs the official scorer.
     """
     d_hours = candidate_days[:, None] * 24.0
     t = fail_hours_samples[None, :]
@@ -100,8 +102,11 @@ def build_cost_curves(calibrated: pd.DataFrame, quantile_levels: list[float],
     """Config-guarded entry point: penalties/horizon come from the official
     cost model and raise until transcribed (no-invention rule)."""
     cm = load_config("cost_model")
-    c_early = cm["penalties"]["early_replacement_per_unit"]      # raises if UNKNOWN
-    c_late = cm["penalties"]["late_replacement_per_device_hour"] # raises if UNKNOWN
+    # Official units are cost per DAY (scenarios.json), so the curves below are
+    # built on a per-day grid; cost_curve() converts the hour-based failure
+    # samples accordingly.
+    c_early = cm["penalties"]["early_replacement_per_day"] / 24.0
+    c_late = cm["penalties"]["late_replacement_per_day"] / 24.0
     if horizon_days is None:
         horizon_days = cm["horizon"]["planning_days"]            # raises if UNKNOWN
     return cost_curves_from_constants(calibrated, quantile_levels, c_early, c_late,

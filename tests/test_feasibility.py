@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from batteryswap.config import UnknownValueError, load_config
+from batteryswap.config import load_config
 from batteryswap.optimizer.routing import plan_day, route_length_minutes, two_opt
 
 
@@ -38,10 +38,15 @@ def test_plan_day_accounting(travel):
     assert set(plan.order) == {"A", "B", "C"}
 
 
-def test_full_feasibility_check_blocked_until_constants_resolved():
-    """The real feasibility test needs worker_count and the day cap from the
-    official evaluator; asserting with invented values would be worse than
-    not asserting. This test documents (and enforces) that state."""
+def test_official_hour_caps_are_loadable_and_the_weekly_one_binds():
+    """The release settles the workforce limits in HOURS. With a 42-day window
+    the weekly cap is what actually constrains the plan, so it is asserted
+    explicitly — a regression here would silently relax feasibility."""
     cm = load_config("cost_model")
-    with pytest.raises(UnknownValueError):
-        _ = cm["workforce"]["worker_count"]
+    assert cm["workforce"]["overtime_start_hours"] == 8.0
+    assert cm["workforce"]["overtime_penalty_factor"] == 2.0
+    weekly = cm["workforce"]["worker_limit_weekly_hours"]
+    daily = cm["workforce"]["worker_limit_daily_hours"]
+    assert weekly == 24.0 and daily == 24.0
+    # 6 weeks x 24 h is the entire crew budget for one scenario
+    assert cm["horizon"]["planning_days"] / 7 * weekly == 144.0

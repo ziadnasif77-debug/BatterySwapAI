@@ -24,13 +24,14 @@ def cpsat_assign(buildings: list[str], candidate_days: list[int],
     transcribed — this is intentional (no-invention rule).
     """
     cm = load_config("cost_model")
-    n_workers = cm["workforce"]["worker_count"]              # raises if UNKNOWN
-    day_cap = cm["workforce"]["working_minutes_per_day"]     # raises if UNKNOWN
+    n_workers = cm["workforce"]["worker_count"]
+    day_cap = cm["workforce"]["worker_limit_daily_hours"]
+    week_cap = cm["workforce"]["worker_limit_weekly_hours"]  # the binding one
 
     from ortools.sat.python import cp_model  # imported late: heavy dependency
 
     raise NotImplementedError(
-        f"CP-SAT model construction begins in Phase 0 once the official constants "
-        f"are transcribed (workers={n_workers}, day_cap={day_cap} loaded OK). "
+        f"CP-SAT model construction is deferred (§20 cut order). Constants load "
+        f"OK: workers={n_workers}, day_cap={day_cap}h, week_cap={week_cap}h. "
         f"cp_model={cp_model.__name__} available."
     )
