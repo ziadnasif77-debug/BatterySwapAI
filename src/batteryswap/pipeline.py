@@ -32,7 +32,7 @@ from .features import assemble_matrix, build_feature_table
 from .io import RawData, Scenario
 from .labels import FAILURE_VOLTAGE, eol_days_relative
 from .metrics import mae, pinball_loss, q_col
-from .models.gbm_quantile import GBMQuantileModel
+from .models.sklearn_quantile import SklearnQuantileModel
 from .optimizer import Schedule
 from .optimizer.alns import ALNSConfig, alns_search, day_removal, make_building_removal
 from .optimizer.opportunistic import opportunistic_upgrade
@@ -116,7 +116,7 @@ def build_matrix(daily: pd.DataFrame, cutoffs: pd.DataFrame,
 
 @dataclass
 class TrainedModel:
-    model: GBMQuantileModel
+    model: SklearnQuantileModel
     offsets: dict[float, float]
     coverage: pd.DataFrame
     diagnostics: dict
@@ -189,7 +189,9 @@ def train(X: pd.DataFrame, y: pd.Series, groups: pd.Series, seed: int,
     X_fit, y_fit = X[~is_calib], y[~is_calib]
     X_cal, y_cal = X[is_calib], y[is_calib]
 
-    model = GBMQuantileModel(QUANTILES, dict(GBM_PARAMS), seed=seed).fit(X_fit, y_fit)
+    # ⛔ sklearn, not LightGBM: the competition runtime has no lightgbm,
+    # so a pickled planner carrying LightGBM boosters cannot be scored.
+    model = SklearnQuantileModel(QUANTILES, seed=seed).fit(X_fit, y_fit)
     raw = model.predict_quantiles(X_cal)
     offsets = cqr_offsets(raw, y_cal, QUANTILES)
     calibrated = apply_offsets(raw, offsets)

@@ -11,8 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 UNKNOWN = "UNKNOWN"
 
 CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
@@ -71,6 +69,10 @@ class GuardedConfig:
 
 def load_config(name: str, config_dir: Path | None = None) -> GuardedConfig:
     """Load ``configs/<name>.yaml`` as a :class:`GuardedConfig`."""
+    # PyYAML is absent from the competition runtime, and the planner never
+    # reads a config there - so the import stays inside the function.
+    import yaml
+
     directory = config_dir or CONFIG_DIR
     path = directory / f"{name}.yaml"
     with open(path, "r", encoding="utf-8") as fh:

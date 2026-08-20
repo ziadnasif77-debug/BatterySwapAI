@@ -70,17 +70,47 @@ The official harness (`batteryswap_public.utils.make_submissions`) calls
 `planner.plan(battery_data, locations, travel_costs, settings)` once per
 scenario and assembles `submission.csv` itself. So the deliverable is a
 **pickled `Planner`** committed to a HuggingFace model repo, not a file we
-write. Two consequences shape
-[`planner.py`](src/batteryswap/planner.py):
+write. Two consequences shape [`planner.py`](src/batteryswap/planner.py):
 
 - **No leakage is possible.** The official `iterate_scenarios` truncates each
   series at the scenario start and drops already-dead devices before the
   planner ever sees them.
 - **Every battery must appear exactly once**, with a real date. "Skipping" a
   battery means giving it a date past the planning window, which the evaluator
-  cuts. There is no omit option — and a battery with a *recorded* EOL inside
-  the window that goes unscheduled triggers a forced emergency visit: its own
-  day, its own round trip, plus late penalty.
+  cuts. A battery with a *recorded* EOL inside the window that goes unscheduled
+  triggers a forced emergency visit: its own day, its own round trip, plus
+  late penalty.
+
+### ⛔ Two submission-blocking traps in the container
+
+The image copies **only** `requirements.txt`, `script.py` and
+`batteryswap_example/`, and installs a package set the competition fixes
+("changing these will *not* affect the competition runtime environment").
+Both of the following would have failed on the submission machine while
+passing every local test:
+
+1. **LightGBM is not installed there.** The runtime has scikit-learn, scipy,
+   statsmodels, lifelines, ortools, polars and torch — and no other
+   gradient-boosting library. A pickle carrying LightGBM boosters raises
+   ImportError on load. The shipped model is therefore
+   [`SklearnQuantileModel`](src/batteryswap/models/sklearn_quantile.py). The
+   forced move is an upgrade: `HistGradientBoostingRegressor` accepts
+   `monotonic_cst` **together with** quantile loss, so §9's monotone
+   constraints are finally active on the primary model — LightGBM refuses that
+   combination.
+2. **PyYAML is not installed there either**, and `config.py` imported it at
+   module level, which would break the whole vendored package on import. The
+   import is now function-local.
+
+[`bundle.py`](src/batteryswap/bundle.py) builds a ready-to-push repository and
+verifies it: it vendors only the modules `plan()` actually reaches, and walks
+the **AST** of each one to reject module-level imports of packages the runtime
+lacks (function-local and `try`-guarded imports are fine, which is exactly how
+`config.py` still reaches PyYAML during development).
+
+```bash
+python -m batteryswap.cli official --bundle submission
+```
 
 ### What the official release changed about the brief
 

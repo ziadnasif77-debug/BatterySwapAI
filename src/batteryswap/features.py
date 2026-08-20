@@ -24,8 +24,15 @@ HOURS = pd.Timedelta(hours=1)
 
 
 def _theil_sen_slope(t_hours: np.ndarray, v: np.ndarray) -> float:
-    """Robust slope in volts/hour; NaN if under 8 points."""
-    if len(v) < 8:
+    """Robust slope in volts/hour; NaN if too few points.
+
+    The minimum is 4, not 8: features are computed on DAILY medians, so the
+    7-day window holds at most 7 points and a threshold of 8 made
+    ``v_slope_7d`` - and with it ``v_accel_7_90`` - NaN for every single row.
+    LightGBM tolerated the dead columns silently; sklearn's histogram binning
+    raises on them, which is how they were finally noticed.
+    """
+    if len(v) < 4:
         return np.nan
     # subsample for O(n^2) safety on long windows
     if len(v) > 500:

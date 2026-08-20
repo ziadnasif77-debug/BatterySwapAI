@@ -355,7 +355,19 @@ def cmd_official(args) -> int:
     Path(args.planner_out).parent.mkdir(parents=True, exist_ok=True)
     with open(args.planner_out, "wb") as fh:
         pickle.dump(planner, fh)
-    print(f"  wrote {args.planner_out} (pickle for the submission repo)")
+    print(f"  wrote {args.planner_out}")
+
+    if args.bundle:
+        from .bundle import build_bundle, verify_bundle
+        out = build_bundle(planner, args.bundle)
+        problems = verify_bundle(out)
+        print(f"  built submission bundle at {out}/")
+        if problems:
+            print("  ⛔ bundle problems:")
+            for problem in problems:
+                print(f"     - {problem}")
+            return 1
+        print("  bundle verified: harness files present, no runtime-absent imports")
     return 0
 
 
@@ -413,6 +425,8 @@ def main(argv: list[str] | None = None) -> int:
     off.add_argument("--stride", type=int, default=1)
     off.add_argument("--max-swaps", type=int, default=25, dest="max_swaps")
     off.add_argument("--planner-out", default="artifacts/planner.pickle")
+    off.add_argument("--bundle", default=None,
+                     help="also build a ready-to-push submission repo here")
     off.set_defaults(fn=cmd_official)
 
     sw = sub.add_parser("sweep", help="sweep the selection bar against the scorer")

@@ -13,6 +13,11 @@ docs/official/evaluator/
 # pickle in the HuggingFace MODEL repo, not here.
 artifacts/
 
+# Built submission bundle: regenerable, and it embeds a model fitted on the
+# licensed dataset. It belongs in the HuggingFace model repo, not here.
+submission/
+submission.csv
+
 # Pipeline outputs
 predictions/
 decision/
