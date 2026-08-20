@@ -43,6 +43,50 @@ if _HERE not in sys.path:
 from batteryswap.planner import BatterySwapPlanner  # noqa: E402,F401
 from batteryswap.models.sklearn_quantile import SklearnQuantileModel  # noqa: E402,F401
 '''
+SUBMISSION_README = """# BatterySwapAI 2026 submission
+
+Self-contained: running this needs **nothing outside this directory** beyond
+the packages the competition installs and the dataset it mounts at
+`/tmp/data`. Verified by running the official image end to end.
+
+## Layout
+
+    script.py                              official harness, unmodified
+    requirements.txt                       official runtime pins (ignored by
+                                           the competition, kept for parity)
+    Dockerfile                             official image definition
+    batteryswap_example/
+      train.py                             puts the vendored package on sys.path
+      planners/best.pickle                 the trained Planner
+      batteryswap/                         our code, vendored
+
+## How it runs
+
+`script.py` imports `batteryswap_example.train` (which extends `sys.path`),
+unpickles `planners/best.pickle`, and hands it to
+`batteryswap_public.utils.make_submissions`. That calls `planner.plan(...)`
+once per scenario and writes `submission.csv`.
+
+`plan()` opens no files and reads no configuration - everything it needs
+arrives as arguments. Tests pin this (`test_bundle_selfcontained.py`).
+
+## Model
+
+scikit-learn `HistGradientBoostingRegressor`, one booster per quantile, with
+monotonic constraints. **Not LightGBM** - it is absent from the competition
+runtime, and a pickle carrying LightGBM boosters fails to load there.
+
+## Reproduce locally
+
+    docker build -t batteryswapai-2026-sub .
+    docker run --rm -v /path/to/dataset:/tmp/data batteryswapai-2026-sub bash -c "/app/env/bin/python3 script.py && BATTERYSWAP_SUBMISSION_PATH=/app/submission.csv /app/env/bin/python3 -m batteryswap_public.metric"
+
+On Git Bash prefix with `MSYS_NO_PATHCONV=1` and use a Windows-style host path,
+otherwise the mount path is rewritten and the dataset is not found.
+
+Expected on the train split: `total_time = 1047.6282118055558`.
+"""
+
 
 # An ALLOWLIST, not a denylist: only what plan() actually reaches at runtime
 # travels. Everything else in the package pulls in something the competition
@@ -94,6 +138,7 @@ def build_bundle(planner, out_dir: str | Path = "submission",
     # 3. the module script.py imports first
     (example / "__init__.py").write_text("", encoding="utf-8")
     (example / "train.py").write_text(TRAIN_PY, encoding="utf-8")
+    (out / "README.md").write_text(SUBMISSION_README, encoding="utf-8")
 
     # 4. the trained planner
     with open(example / "planners" / "best.pickle", "wb") as fh:
