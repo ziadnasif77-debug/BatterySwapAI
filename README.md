@@ -216,9 +216,11 @@ hour-equivalents; the competition reports the mean across scenarios.
 | **Ours** | **1,047.6** | **−68.5 %**, wins **48 of 48** scenarios |
 | Hindsight oracle (true EOL, same batching) | ~409 | measured on the first 6 scenarios |
 
-Confirmed end to end through the competition's own entry point — 
+Confirmed end to end through the competition's own entry point, **inside the
+official Docker image** (scikit-learn 1.7.2, numpy 2.2.6, Python 3.10):
 `script.py` → `make_submissions` → `batteryswap_public.metric` reports
-`train_score.total_time = 1047.63`, matching the backtest exactly.
+`train_score.total_time = 1047.6282118055558` — matching the local backtest
+to 10 decimal places.
 
 Reproduce: `python -m batteryswap.cli official --bundle submission`.
 
@@ -285,10 +287,12 @@ explains the cost, it does not select the plan.**
    are a backtest on what we have, so they are an estimate of leaderboard
    performance, not a leaderboard result. ⛔ §15 still applies: do not tune
    against the public board when it appears.
-2. **The submission has not been run through the official Docker image.** The
-   plan validates against `check_plan_valid` and scores through
-   `evaluate_plan`, but the end-to-end `script.py` + `make_submissions` path in
-   the competition container is untested here. Do that before submitting.
+2. ~~The submission has not been run through the official Docker image.~~
+   **Done.** The official image was built and the full path — `script.py` →
+   `make_submissions` → `batteryswap_public.metric` — ran **inside the
+   container** against the train split: `total_time = 1047.6282118055558`,
+   matching the local run to 10 decimal places. Notably the pickle, written
+   with scikit-learn 1.9.0, loaded cleanly on the container's 1.7.2.
 3. **The swap cap (25) is a structural constant, not a learned quantity.** It
    is justified by the observed maximum of 19 recorded EOLs per window in this
    split; a fleet with a different failure rate would need it re-derived.
