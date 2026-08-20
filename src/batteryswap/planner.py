@@ -66,9 +66,9 @@ class BatterySwapPlanner:
     """
 
     def __init__(self, model, offsets: dict, quantiles: list[float],
-                 q: float = 0.20, batch_window_days: float = 14.0,
+                 q: float = 0.12, batch_window_days: float = 14.0,
                  threshold: float = FAILURE_VOLTAGE, skip_stale: bool = True,
-                 voltage_margin: float | None = 0.20,
+                 voltage_margin: float | None = 0.50,
                  max_swaps: int | None = 25):
         self.model = model
         self.offsets = dict(offsets)

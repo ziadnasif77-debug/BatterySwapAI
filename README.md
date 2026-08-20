@@ -213,25 +213,40 @@ hour-equivalents; the competition reports the mean across scenarios.
 | Plan | Mean cost/scenario | |
 |---|---:|---|
 | No planning (nothing scheduled in-window) | 3,324.7 | forced emergency visits only |
-| **Ours** | **1,241.2** | **−62.7 %**, wins 45 of 48 scenarios |
+| **Ours** | **1,047.6** | **−68.5 %**, wins **48 of 48** scenarios |
 | Hindsight oracle (true EOL, same batching) | ~409 | measured on the first 6 scenarios |
 
-Reproduce: `python -m batteryswap.cli official` →
-`reports/official_scores.csv` + `artifacts/planner.pickle`.
+Confirmed end to end through the competition's own entry point — 
+`script.py` → `make_submissions` → `batteryswap_public.metric` reports
+`train_score.total_time = 1047.63`, matching the backtest exactly.
 
-### §11 confirmed: the swept q sits far above the theoretical one
+Reproduce: `python -m batteryswap.cli official --bundle submission`.
+
+### §11 confirmed: the swept q sits above the theoretical one
 
 The newsvendor identity gives `q* = 0.5/(0.5+10) = 0.0476`. Swept against the
-official scorer:
+official scorer, the optimum is **`q = 0.12`, 2.5× the theoretical value** —
+the effect §11 predicts once trips are shared, and one the pre-release
+synthetic rehearsal could not demonstrate because its fleet had no travel
+pressure. Final knobs: `q=0.12`, batching window 14 days, voltage gate 0.50 V,
+cap 25.
 
-| q | 0.048 (q\*) | 0.10 | 0.15 | **0.20** | 0.25 | 0.30 | 0.45 |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| cost | 1,307 | 1,120 | 1,084 | **905** | 1,002 | 1,205 | 2,201 |
+### A subset winner that lost on the full set
 
-The optimum is **4× the theoretical value** — exactly the effect §11 predicts
-once trips are shared, and something the pre-release synthetic rehearsal could
-not demonstrate because its fleet had no travel pressure. Batching window and
-voltage gate were swept the same way (14 days, 0.20 V).
+The sweep ran on every 4th scenario, and its winner was `cap=15` (937.0 there).
+Re-scored on **all 48** it came second, and its late penalty was 21 % worse:
+
+| config | mean (48) | late | |
+|---|---:|---:|---|
+| q=0.12, margin=0.50, **cap=25** | **1,047.6** | 428.8 | shipped |
+| q=0.12, margin=0.50, **cap=15** | 1,061.0 | 521.2 | won the 12-scenario sweep |
+| q=0.15, margin=0.35, cap=25 | 1,107.1 | 540.2 | |
+| q=0.20, margin=0.20, cap=25 | 1,182.9 | 734.8 | pre-retune |
+
+The tell was structural, not statistical: at most **19** devices ever hold a
+recorded EOL inside a window, so a cap of 15 must skip genuinely-due
+devices — and skipping one costs a forced emergency visit. Selecting on the
+subset alone would have shipped the worse configuration.
 
 ### What actually moved the number
 
