@@ -5,8 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from batteryswap.decision import (cost_curve, cost_curves_from_constants, days_at_q,
-                                  newsvendor_q, quantile_grid_to_samples)
+from batteryswap.decision import (
+    cost_curve,
+    cost_curves_from_constants,
+    days_at_q,
+    newsvendor_q,
+    quantile_grid_to_samples,
+)
 from batteryswap.optimizer import Schedule
 from batteryswap.optimizer.opportunistic import opportunistic_upgrade
 from batteryswap.saa import draw_failure_scenarios, scenario_cost_curves

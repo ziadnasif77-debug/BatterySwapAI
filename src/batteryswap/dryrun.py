@@ -29,8 +29,13 @@ from .metrics import mae as mae_metric
 from .metrics import pinball_loss
 from .models.gbm_quantile import GBMQuantileModel
 from .optimizer import Schedule
-from .optimizer.alns import (ALNSConfig, alns_search, day_removal,
-                             make_building_removal, random_removal)
+from .optimizer.alns import (
+    ALNSConfig,
+    alns_search,
+    day_removal,
+    make_building_removal,
+    random_removal,
+)
 from .optimizer.construct import regret_k_construct
 from .optimizer.opportunistic import opportunistic_upgrade, per_building_trip_cost
 from .optimizer.routing import plan_day
@@ -112,7 +117,7 @@ def _day_service_minutes(batteries: list[str], loc: dict[str, tuple[str, str]],
 
 
 def route_schedule(schedule: Schedule, loc: dict[str, tuple[str, str]],
-                   travel: pd.DataFrame, cm: SyntheticCostModel) -> dict[int, "object"]:
+                   travel: pd.DataFrame, cm: SyntheticCostModel) -> dict[int, object]:
     """Deterministic per-day routing (NN + 2-opt) for every used day."""
     by_day: dict[int, list[str]] = defaultdict(list)
     for b, d in schedule.assignments.items():
@@ -142,7 +147,8 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
                 n_cutoffs_per_battery: int = 4, alns_iterations: int = 1500,
                 life_days_range: tuple[int, int] = (550, 750),
                 use_saa: bool = False, n_scenarios: int = 200,
-                cm: SyntheticCostModel = SyntheticCostModel()) -> DryRunResult:
+                cm: SyntheticCostModel | None = None) -> DryRunResult:
+    cm = cm if cm is not None else SyntheticCostModel()
     rng = np.random.default_rng(seed)
     fleet = synthetic_fleet(n_buildings=n_buildings, seed=seed,
                             life_days_range=life_days_range)

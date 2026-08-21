@@ -25,9 +25,9 @@ how far it drifts from the real thing.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
 
 import pandas as pd
 
@@ -55,9 +55,10 @@ def _official():
 def is_available() -> bool:
     try:
         _official()
-        return True
     except OfficialEvaluatorMissingError:
         return False
+    else:
+        return True
 
 
 @dataclass

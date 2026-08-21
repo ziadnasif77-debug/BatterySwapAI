@@ -75,10 +75,12 @@ def load_config(name: str, config_dir: Path | None = None) -> GuardedConfig:
 
     directory = config_dir or CONFIG_DIR
     path = directory / f"{name}.yaml"
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     if not isinstance(data, dict):
-        raise ValueError(f"{path} did not parse to a mapping")
+        # TRY004 asks for TypeError, which fits a caller passing the wrong type.
+        # Nothing was passed here: the YAML file's own content is wrong.
+        raise ValueError(f"{path} did not parse to a mapping")  # noqa: TRY004
     return GuardedConfig(data)
 
 

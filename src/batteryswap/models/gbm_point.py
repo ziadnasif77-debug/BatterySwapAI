@@ -32,14 +32,15 @@ class GBMPointModel:
         self.params = dict(params)
         self.seed = seed
         self.monotone = monotone
-        self.booster_: "lgb.Booster | None" = None
+        self.booster_: lgb.Booster | None = None
         self.feature_names_: list[str] = []
 
     def fit(self, X: pd.DataFrame, y: pd.Series,
             X_val: pd.DataFrame | None = None,
-            y_val: pd.Series | None = None) -> "GBMPointModel":
+            y_val: pd.Series | None = None) -> GBMPointModel:
         self.feature_names_ = list(X.columns)
-        early_stopping = int(self.params.pop("early_stopping_rounds", 0)) if X_val is not None else 0
+        early_stopping = (int(self.params.pop("early_stopping_rounds", 0))
+                          if X_val is not None else 0)
         n_estimators = int(self.params.pop("n_estimators", 1000))
 
         params = {

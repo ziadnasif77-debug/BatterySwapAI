@@ -68,7 +68,7 @@ class SklearnQuantileModel:
 
     def fit(self, X: pd.DataFrame, y: pd.Series,
             X_val: pd.DataFrame | None = None,
-            y_val: pd.Series | None = None) -> "SklearnQuantileModel":
+            y_val: pd.Series | None = None) -> SklearnQuantileModel:
         dead = self.degenerate_columns(X)
         if dead:
             X = X.drop(columns=dead)
@@ -95,5 +95,5 @@ class SklearnQuantileModel:
         raw = np.column_stack([self.models_[q].predict(values) for q in self.quantiles])
         raw = np.maximum(raw, 0.0)                 # RUL cannot be negative
         ordered = enforce_non_crossing(raw)
-        cols = [f"q{int(round(q * 100)):02d}" for q in self.quantiles]
+        cols = [f"q{round(q * 100):02d}" for q in self.quantiles]
         return pd.DataFrame(ordered, columns=cols, index=X.index)

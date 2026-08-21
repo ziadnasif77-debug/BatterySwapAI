@@ -41,7 +41,7 @@ def days_at_q(calibrated: pd.DataFrame, quantile_levels: list[float], q: float,
     optimum sits materially above the theoretical q*.
     """
     levels = np.asarray(quantile_levels, dtype=float)
-    cols = [f"q{int(round(x * 100)):02d}" for x in quantile_levels]
+    cols = [f"q{round(x * 100):02d}" for x in quantile_levels]
     out = {}
     for _, row in calibrated.iterrows():
         hours = failure_hours_at_q(row[cols].to_numpy(dtype=float), levels, q)
@@ -84,7 +84,7 @@ def cost_curves_from_constants(calibrated: pd.DataFrame, quantile_levels: list[f
     build_cost_curves(); this form also serves the synthetic dry-run harness.
     """
     levels = np.asarray(quantile_levels, dtype=float)
-    q_cols = [f"q{int(round(q * 100)):02d}" for q in quantile_levels]
+    q_cols = [f"q{round(q * 100):02d}" for q in quantile_levels]
     days = np.arange(1, horizon_days + 1, dtype=float)
 
     frames = []

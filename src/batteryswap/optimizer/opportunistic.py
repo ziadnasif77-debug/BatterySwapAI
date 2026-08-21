@@ -65,7 +65,7 @@ def opportunistic_upgrade(schedule: Schedule, curves: dict[str, np.ndarray],
     return Schedule(assignments=assignments), moved
 
 
-def per_building_trip_cost(buildings: list[str], travel: "object",
+def per_building_trip_cost(buildings: list[str], travel: object,
                            building_overhead_minutes: float,
                            minute_cost: float) -> dict[str, float]:
     """Proxy for the marginal cost of one additional dedicated visit.

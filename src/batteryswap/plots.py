@@ -11,12 +11,12 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402  (backend must be set first)
+import matplotlib.pyplot as plt
 
 REPORTS_DIR = Path(__file__).resolve().parents[2] / "reports"
 
 
-def plot_coverage(coverage: "object", path: str | Path | None = None,
+def plot_coverage(coverage: object, path: str | Path | None = None,
                   title: str = "Calibrated quantile coverage") -> Path:
     """Nominal vs empirical coverage against the diagonal.
 
@@ -43,7 +43,7 @@ def plot_coverage(coverage: "object", path: str | Path | None = None,
     return path
 
 
-def plot_q_sweep(sweep: "object", path: str | Path | None = None,
+def plot_q_sweep(sweep: object, path: str | Path | None = None,
                  q_star: float | None = None) -> Path:
     """Final cost against q, with the newsvendor q* marked.
 

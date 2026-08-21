@@ -65,6 +65,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import pairwise
 
 import numpy as np
 import pandas as pd
@@ -144,7 +145,7 @@ class ScenarioScorer:
         # A2: depot -> ... -> depot, sequenced by NN + 2-opt over the visit set
         order = two_opt(nearest_neighbor_order(buildings, travel), travel)
         legs = [depot, *order, depot]
-        travel_h = float(sum(travel.loc[a, b] for a, b in zip(legs[:-1], legs[1:])))
+        travel_h = float(sum(travel.loc[a, b] for a, b in pairwise(legs)))
 
         n_b = len(buildings)
         n_r = sum(len(rooms) for rooms in by_building.values())

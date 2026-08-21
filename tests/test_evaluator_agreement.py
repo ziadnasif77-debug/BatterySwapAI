@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -90,10 +91,10 @@ def test_our_planner_emits_a_plan_the_official_checker_accepts(problem):
     from batteryswap.planner import BatterySwapPlanner
 
     class _Flat:
-        feature_names_: list[str] = []
+        feature_names_: ClassVar[list[str]] = []
 
         def predict_quantiles(self, X):
-            cols = [f"q{int(round(q * 100)):02d}" for q in QUANTILES]
+            cols = [f"q{round(q * 100):02d}" for q in QUANTILES]
             grid = np.tile(np.array([10.0, 15.0, 25.0, 40.0, 60.0, 90.0]), (len(X), 1))
             return pd.DataFrame(grid, columns=cols, index=X.index)
 
@@ -148,7 +149,7 @@ def test_reimplementation_divergence_is_measured_not_assumed(problem):
                                             values="hours").sort_index().sort_index(axis=1)
         horizon_days = int(settings.planning_window_days)
         depot = settings.base_location
-        settings_dict = {
+        settings_dict: ClassVar[dict] = {
             "time_per_battery_hours": settings.time_per_battery_hours,
             "time_per_room_change_hours": settings.time_per_room_change_hours,
             "time_per_building_change_hours": settings.time_per_building_change_hours,

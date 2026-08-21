@@ -87,7 +87,8 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
         slopes[d] = s
         f[f"v_slope_{d}d"] = s
         f[f"v_std_{d}d"] = float(np.std(wv)) if len(wv) > 2 else np.nan
-        f[f"v_iqr_{d}d"] = float(np.subtract(*np.percentile(wv, [75, 25]))) if len(wv) > 4 else np.nan
+        f[f"v_iqr_{d}d"] = (float(np.subtract(*np.percentile(wv, [75, 25])))
+                            if len(wv) > 4 else np.nan)
         f[f"v_min_{d}d"] = float(np.min(wv)) if len(wv) else np.nan
         f[f"v_p10_{d}d"] = float(np.percentile(wv, 10)) if len(wv) > 4 else np.nan
         f[f"t_mean_{d}d"] = float(np.mean(w["temperature"])) if len(w) else np.nan
@@ -100,7 +101,7 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
     # --- knee indicator group (§8, physics-derived) --------------------------
     with np.errstate(divide="ignore", invalid="ignore"):
         f["knee_slope_ratio"] = (slopes[30] / slopes[180]
-                                 if slopes[180] not in (0.0,) and np.isfinite(slopes[180])
+                                 if slopes[180] != 0.0 and np.isfinite(slopes[180])
                                  else np.nan)
     plateau = float(np.percentile(v, 60)) if len(v) > 50 else f["v_init"]
     f["dist_below_plateau"] = plateau - f["v_now"]

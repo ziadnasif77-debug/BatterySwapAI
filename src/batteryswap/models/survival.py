@@ -26,7 +26,7 @@ class WeibullAFTModel:
         self.fitter = WeibullAFTFitter(penalizer=penalizer)
 
     def fit(self, X: pd.DataFrame, duration_hours: pd.Series,
-            event_observed: pd.Series) -> "WeibullAFTModel":
+            event_observed: pd.Series) -> WeibullAFTModel:
         frame = X.copy()
         frame["duration"] = duration_hours.to_numpy()
         frame["event"] = event_observed.astype(int).to_numpy()
@@ -40,5 +40,5 @@ class WeibullAFTModel:
         out = {}
         for q in quantiles:
             preds = self.fitter.predict_percentile(X, p=1 - q)  # lifelines: survival percentile
-            out[f"q{int(round(q * 100)):02d}"] = np.asarray(preds, dtype=float)
+            out[f"q{round(q * 100):02d}"] = np.asarray(preds, dtype=float)
         return pd.DataFrame(out, index=X.index)

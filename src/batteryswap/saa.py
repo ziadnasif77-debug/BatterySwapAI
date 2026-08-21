@@ -1,6 +1,6 @@
 """Sample Average Approximation over lifetime scenarios (§12.5).
 
-Draw 50–200 failure-time scenarios per battery from the CALIBRATED
+Draw 50-200 failure-time scenarios per battery from the CALIBRATED
 distributions and optimize expected cost across them, instead of against one
 point deadline.
 

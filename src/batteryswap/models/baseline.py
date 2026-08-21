@@ -15,7 +15,7 @@ class ConstantBaseline:
     def __init__(self):
         self.mean_life_hours_: float | None = None
 
-    def fit(self, lifetimes_hours: pd.Series) -> "ConstantBaseline":
+    def fit(self, lifetimes_hours: pd.Series) -> ConstantBaseline:
         self.mean_life_hours_ = float(lifetimes_hours.dropna().mean())
         return self
 
@@ -27,7 +27,7 @@ class ConstantBaseline:
 
 class LinearExtrapolationBaseline:
     """B1: extrapolate the robust rolling voltage to the failure threshold
-    with a Theil–Sen slope over the trailing window. The physical floor."""
+    with a Theil-Sen slope over the trailing window. The physical floor."""
 
     def __init__(self, threshold: float, slope_window_days: int = 90):
         self.threshold = threshold
