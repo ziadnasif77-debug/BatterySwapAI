@@ -10,6 +10,7 @@ per the official rules once transcribed).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import pairwise
 
 import pandas as pd
 
@@ -64,7 +65,7 @@ def two_opt(order: list[str], travel: pd.DataFrame, max_passes: int = 20) -> lis
 
 
 def route_length_minutes(order: list[str], travel: pd.DataFrame) -> float:
-    return float(sum(travel.loc[a, b] for a, b in zip(order[:-1], order[1:])))
+    return float(sum(travel.loc[a, b] for a, b in pairwise(order)))
 
 
 def plan_day(buildings: list[str], service_minutes: dict[str, float],

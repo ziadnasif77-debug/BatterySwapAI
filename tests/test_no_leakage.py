@@ -27,7 +27,7 @@ def test_assemble_matrix_rejects_smuggled_identifier(synth_ts):
     """A feature table that carries an *_id column under a new name must fail
     loudly, not silently train on it."""
     table = pd.DataFrame({"v_now": [3.0], "sneaky_building_id": ["bl01"]})
-    with pytest.raises(ValueError, match="[Ii]dentifier"):
+    with pytest.raises(ValueError, match=r"[Ii]dentifier"):
         assemble_matrix(table)
 
 

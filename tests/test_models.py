@@ -13,8 +13,11 @@ import pandas as pd
 import pytest
 
 from batteryswap.models.gbm_point import GBMPointModel
-from batteryswap.models.gbm_quantile import (GBMQuantileModel, enforce_non_crossing,
-                                             monotone_constraints)
+from batteryswap.models.gbm_quantile import (
+    GBMQuantileModel,
+    enforce_non_crossing,
+    monotone_constraints,
+)
 
 PARAMS = {"num_leaves": 7, "learning_rate": 0.1, "n_estimators": 60,
           "min_child_samples": 5, "verbosity": -1}

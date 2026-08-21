@@ -8,6 +8,8 @@ submission machine.
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -172,7 +174,7 @@ def test_rows_within_a_day_are_grouped_by_building():
     building_of = dict(zip(locations["battery"], locations["building"]))
     for _, day_rows in plan.groupby("day"):
         sequence = [building_of[b] for b in day_rows["battery"]]
-        transitions = sum(a != b for a, b in zip(sequence, sequence[1:]))
+        transitions = sum(a != b for a, b in pairwise(sequence))
         assert transitions <= len(set(sequence)) - 1, "route revisits a building"
 
 

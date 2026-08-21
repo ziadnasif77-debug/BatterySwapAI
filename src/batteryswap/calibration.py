@@ -22,7 +22,7 @@ def cqr_offsets(pred_q: pd.DataFrame, y_true: pd.Series,
     offsets = {}
     n = len(y_true)
     for q in quantiles:
-        col = f"q{int(round(q * 100)):02d}"
+        col = f"q{round(q * 100):02d}"
         scores = pred_q[col].to_numpy() - y_true.to_numpy()
         rank = min(int(np.ceil((n + 1) * (1 - q))), n)
         offsets[q] = float(np.sort(scores)[rank - 1])
@@ -32,7 +32,7 @@ def cqr_offsets(pred_q: pd.DataFrame, y_true: pd.Series,
 def apply_offsets(pred_q: pd.DataFrame, offsets: dict[float, float]) -> pd.DataFrame:
     out = pred_q.copy()
     for q, off in offsets.items():
-        col = f"q{int(round(q * 100)):02d}"
+        col = f"q{round(q * 100):02d}"
         out[col] = np.maximum(out[col] - off, 0.0)
     # calibration can re-introduce crossings — re-sort
     cols = sorted([c for c in out.columns if c.startswith("q")], key=lambda c: int(c[1:]))
@@ -47,7 +47,7 @@ def coverage_table(pred_q: pd.DataFrame, y_true: pd.Series,
     rows = []
     y = y_true.to_numpy()
     for q in quantiles:
-        col = f"q{int(round(q * 100)):02d}"
+        col = f"q{round(q * 100):02d}"
         rows.append({"nominal": q,
                      "empirical": float(np.mean(y <= pred_q[col].to_numpy())),
                      "n": len(y)})

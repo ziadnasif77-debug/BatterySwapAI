@@ -167,8 +167,7 @@ def _load_or_build(rebuild: bool = False):
 
 def cmd_submit(args) -> int:
     from .experiments import record_run
-    from .pipeline import (results_frame, run_backtest, train, training_targets,
-                           write_submission)
+    from .pipeline import results_frame, run_backtest, train, training_targets, write_submission
 
     data, _, truth, X, y, meta = _load_or_build(args.rebuild)
     building_of = dict(zip(data.devices["device_id"], data.devices["building_id"]))
@@ -191,7 +190,7 @@ def cmd_submit(args) -> int:
 
     total, nothing, oracle = (frame["final_cost"].sum(), frame["do_nothing"].sum(),
                               frame["oracle"].sum())
-    print("")
+    print()
     print("=== FINAL COST (our scorer - NOT the official one) ===")
     print(f"  do-nothing baseline : {nothing:12,.1f}")
     print(f"  our plan            : {total:12,.1f}"
@@ -204,8 +203,10 @@ def cmd_submit(args) -> int:
           f" | cap breaches: {int(frame['days_over_cap'].sum() + frame['weeks_over_cap'].sum())}")
 
     path = write_submission(results, args.out)
-    print("")
-    print(f"wrote {path} ({len(open(path).readlines()) - 1} rows)")
+    print()
+    with open(path, encoding="utf-8") as fh:
+        n_rows = sum(1 for _ in fh) - 1
+    print(f"wrote {path} ({n_rows} rows)")
 
     Path("reports").mkdir(exist_ok=True)
     frame.to_csv("reports/score_breakdown.csv", index=False)
@@ -252,7 +253,7 @@ def cmd_sweep(args) -> int:
     out = pd.DataFrame(rows).sort_values("final_cost")
     Path("reports").mkdir(exist_ok=True)
     out.to_csv("reports/slack_sweep.csv", index=False)
-    print("")
+    print()
     print(f"best: q_slack={out.iloc[0]['q_slack']:+.2f} "
           f"cost={out.iloc[0]['final_cost']:,.1f}  (wrote reports/slack_sweep.csv)")
     return 0
@@ -338,7 +339,7 @@ def cmd_official(args) -> int:
     frame.to_csv("reports/official_scores.csv", index=False)
 
     ours, base = frame["ours"].mean(), frame["no_planning"].mean()
-    print("")
+    print()
     print("=== OFFICIAL SCORE (batteryswap_public.evaluate) ===")
     print(f"  scenarios scored : {len(frame)}")
     print(f"  no planning      : {base:12,.1f}")

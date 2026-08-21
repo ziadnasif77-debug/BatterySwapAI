@@ -62,13 +62,14 @@ class GBMQuantileModel:
         self.quantiles = list(quantiles)
         self.params = dict(params)
         self.seed = seed
-        self.boosters_: dict[float, "lgb.Booster"] = {}
+        self.boosters_: dict[float, lgb.Booster] = {}
         self.feature_names_: list[str] = []
 
     def fit(self, X: pd.DataFrame, y: pd.Series,
-            X_val: pd.DataFrame | None = None, y_val: pd.Series | None = None) -> "GBMQuantileModel":
+            X_val: pd.DataFrame | None = None, y_val: pd.Series | None = None) -> GBMQuantileModel:
         self.feature_names_ = list(X.columns)
-        early_stopping = int(self.params.pop("early_stopping_rounds", 0)) if X_val is not None else 0
+        early_stopping = (int(self.params.pop("early_stopping_rounds", 0))
+                          if X_val is not None else 0)
         n_estimators = int(self.params.pop("n_estimators", 1000))
 
         for q in self.quantiles:
@@ -97,5 +98,5 @@ class GBMQuantileModel:
         raw = np.column_stack([self.boosters_[q].predict(X) for q in self.quantiles])
         raw = np.maximum(raw, 0.0)          # RUL cannot be negative
         ordered = enforce_non_crossing(raw)
-        cols = [f"q{int(round(q * 100)):02d}" for q in self.quantiles]
+        cols = [f"q{round(q * 100):02d}" for q in self.quantiles]
         return pd.DataFrame(ordered, columns=cols, index=X.index)

@@ -25,7 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",
-    "ruff>=0.5",
+    "ruff>=0.16,<0.17",
 ]
 
 [project.scripts]
@@ -41,3 +41,25 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Selected explicitly. Every CI run before this pin failed on the lint step,
+# never on a test: `ruff>=0.5` floats to the newest release, and ruff has since
+# moved rules into its default set that were not in it when that floor was
+# written. With `select` spelled out and the version bounded, a ruff release
+# can no longer turn this repository red on its own.
+select = ["E", "F", "I", "B", "SIM", "UP", "RUF", "ISC", "FURB", "TRY"]
+ignore = [
+    # Descriptive messages at the `raise` site are deliberate: most of them
+    # name the offending value, which is what makes a failed run diagnosable.
+    "TRY003",
+    # `zip(strict=)` changes behaviour (raises on ragged input) rather than
+    # style. Worth adopting, but not in the same commit as a lint cleanup.
+    "B905",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# bundle.py embeds, inside the submission README it writes, the exact `docker
+# run` line that reproduces the official score. It is one 214-column string
+# meant to be copy-pasted; wrapping it would defeat the only reason it is there.
+"src/batteryswap/bundle.py" = ["E501"]

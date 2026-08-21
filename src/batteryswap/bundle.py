@@ -192,9 +192,8 @@ def _module_level_imports(path: Path) -> set[str]:
     for node in tree.body:                       # top level only, by construction
         if isinstance(node, ast.Import):
             found.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            if node.level == 0 and node.module:
-                found.add(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            found.add(node.module.split(".")[0])
     return found
 
 

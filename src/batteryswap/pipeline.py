@@ -181,7 +181,7 @@ def train(X: pd.DataFrame, y: pd.Series, groups: pd.Series, seed: int,
           calib_fraction: float = 0.25) -> TrainedModel:
     """Fit B3 and conformalise it on held-out BUILDINGS (never rows)."""
     buildings = sorted(groups.unique())
-    n_calib = max(1, int(round(calib_fraction * len(buildings))))
+    n_calib = max(1, round(calib_fraction * len(buildings)))
     rng = np.random.default_rng(seed)
     calib_buildings = set(rng.choice(buildings, size=n_calib, replace=False))
 
@@ -198,7 +198,7 @@ def train(X: pd.DataFrame, y: pd.Series, groups: pd.Series, seed: int,
 
     y_arr = y_cal.to_numpy(dtype=float)
     diagnostics = {
-        "n_fit": int(len(X_fit)), "n_calib": int(len(X_cal)),
+        "n_fit": len(X_fit), "n_calib": len(X_cal),
         "fit_buildings": int(len(buildings) - len(calib_buildings)),
         "calib_buildings": sorted(calib_buildings),
         "mae_days_raw": mae(raw[q_col(0.50)].to_numpy(), y_arr),

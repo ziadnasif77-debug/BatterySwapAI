@@ -13,7 +13,7 @@ import json
 import platform
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 EXPERIMENTS_DIR = Path(__file__).resolve().parents[2] / "experiments"
@@ -29,9 +29,10 @@ def git_sha() -> str:
                              text=True, check=True).stdout.strip()
         dirty = subprocess.run(["git", "status", "--porcelain"], capture_output=True,
                                text=True, check=True).stdout.strip()
-        return f"{sha}-dirty" if dirty else sha
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
+    else:
+        return f"{sha}-dirty" if dirty else sha
 
 
 def environment_summary() -> dict:
@@ -47,7 +48,7 @@ def environment_summary() -> dict:
 
 
 def record_run(name: str, config: dict, metrics: dict,
-               tables: dict[str, "object"] | None = None,
+               tables: dict[str, object] | None = None,
                root: Path | None = None) -> Path:
     """Write one experiment directory; returns its path.
 
@@ -55,7 +56,7 @@ def record_run(name: str, config: dict, metrics: dict,
     results, coverage tables — the things a reviewer asks to see).
     """
     root = root or EXPERIMENTS_DIR
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = root / f"{stamp}_{name}"
     run_dir.mkdir(parents=True, exist_ok=True)
 

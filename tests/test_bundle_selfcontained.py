@@ -13,6 +13,8 @@ plan(), and that is exactly what is asserted here rather than assumed.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
 import pandas as pd
 
@@ -24,7 +26,7 @@ from batteryswap.planner import BatterySwapPlanner
 class _Flat:
     """Model stub: fixed quantiles, so the test exercises plan() not the model."""
 
-    feature_names_: list[str] = []
+    feature_names_: ClassVar[list[str]] = []
 
     def predict_quantiles(self, X):
         cols = ["q05", "q10", "q25", "q50", "q75", "q90"]

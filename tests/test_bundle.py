@@ -8,7 +8,6 @@ checks a way a submission can look fine locally and fail there.
 from __future__ import annotations
 
 import pickle
-import sys
 from pathlib import Path
 
 import pytest
@@ -16,6 +15,12 @@ import pytest
 from batteryswap.bundle import build_bundle, verify_bundle
 
 OFFICIAL_REQUIREMENTS = Path("docs/official/evaluator/requirements.txt")
+
+# The competition fixes this set and ignores edits to requirements.txt. It is
+# repeated here so the verification path runs without the official clone, which
+# is git-ignored and therefore absent on every fresh checkout, CI included.
+RUNTIME_PACKAGES = ("numpy", "pandas", "scikit-learn", "scipy", "statsmodels",
+                    "lifelines", "ortools", "polars", "torch")
 
 
 class _Dummy:
@@ -26,8 +31,31 @@ class _Dummy:
 
 
 @pytest.fixture()
-def bundle(tmp_path) -> Path:
-    return build_bundle(_Dummy(), out_dir=tmp_path / "submission")
+def official_repo(tmp_path) -> Path:
+    """The three files build_bundle copies out of the official example repo.
+
+    That repo is cloned, not vendored (it is theirs), so `.gitignore` keeps it
+    out and no fresh checkout has it. Standing in for it here is what lets
+    verify_bundle be tested at all on CI; when the real clone IS present it is
+    used instead, so the checks run against the genuine files locally.
+    """
+    if OFFICIAL_REQUIREMENTS.exists():
+        return OFFICIAL_REQUIREMENTS.parent
+    repo = tmp_path / "official"
+    repo.mkdir()
+    (repo / "requirements.txt").write_text("\n".join(RUNTIME_PACKAGES) + "\n",
+                                           encoding="utf-8")
+    (repo / "script.py").write_text("# stand-in for the official harness\n",
+                                    encoding="utf-8")
+    (repo / "Dockerfile").write_text("# stand-in for the official image\n",
+                                     encoding="utf-8")
+    return repo
+
+
+@pytest.fixture()
+def bundle(tmp_path, official_repo) -> Path:
+    return build_bundle(_Dummy(), out_dir=tmp_path / "submission",
+                        official_repo=official_repo)
 
 
 def test_bundle_has_the_files_the_container_copies(bundle):
@@ -105,20 +133,22 @@ def test_pickle_round_trips_through_the_bundled_path(bundle, monkeypatch):
     assert hasattr(loaded, "plan")
 
 
-def test_real_planner_pickles_into_a_loadable_bundle(tmp_path, monkeypatch):
+def test_real_planner_pickles_into_a_loadable_bundle(tmp_path, monkeypatch,
+                                                    official_repo):
     """End to end with the actual class, not the stub."""
     from batteryswap.models.sklearn_quantile import SklearnQuantileModel
     from batteryswap.planner import BatterySwapPlanner
 
     planner = BatterySwapPlanner(SklearnQuantileModel([0.5]), offsets={},
                                  quantiles=[0.5])
-    out = build_bundle(planner, out_dir=tmp_path / "submission")
+    out = build_bundle(planner, out_dir=tmp_path / "submission",
+                       official_repo=official_repo)
     assert verify_bundle(out) == []
 
     example = out / "batteryswap_example"
     monkeypatch.syspath_prepend(str(example))
-    for name in [m for m in sys.modules if m.startswith("batteryswap")]:
-        pass  # already imported from the source tree; the pickle resolves either way
+    # batteryswap is already imported from the source tree here; the pickle
+    # resolves against either copy, which is what makes this loadable at all.
     with open(example / "planners" / "best.pickle", "rb") as fh:
         loaded = pickle.load(fh)
     assert isinstance(loaded, BatterySwapPlanner)

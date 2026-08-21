@@ -6,7 +6,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from batteryswap.synthetic import synthetic_battery  # noqa: F401 — shared generator
+from batteryswap.synthetic import synthetic_battery
 
 
 @pytest.fixture(scope="session")

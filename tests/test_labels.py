@@ -4,8 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from batteryswap.labels import (FAILURE_VOLTAGE, compute_eol, eol_days_relative,
-                                ground_truth_eol, time_column)
+from batteryswap.labels import (
+    FAILURE_VOLTAGE,
+    compute_eol,
+    eol_days_relative,
+    ground_truth_eol,
+    time_column,
+)
 
 
 def _series(voltages: list[float], device="x", start="2024-01-01",

@@ -8,8 +8,8 @@ surrogate. Destroy/repair operators receive and return complete Schedules.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 

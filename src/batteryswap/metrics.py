@@ -13,7 +13,7 @@ import pandas as pd
 
 def q_col(q: float) -> str:
     """Canonical quantile column name (0.05 -> 'q05')."""
-    return f"q{int(round(q * 100)):02d}"
+    return f"q{round(q * 100):02d}"
 
 
 def mae(pred: np.ndarray, y: np.ndarray) -> float:
