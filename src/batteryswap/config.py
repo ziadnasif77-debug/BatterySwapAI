@@ -1,6 +1,6 @@
 """Configuration loading with a hard guard against unresolved constants.
 
-The no-invention rule (§0 of the project brief): any quantity not read from an
+The no-invention rule: any quantity not read from an
 official competition file is stored as the literal string ``UNKNOWN`` and must
 raise if a code path tries to consume it. This module is the single enforcement
 point — all config access goes through :class:`GuardedConfig`.

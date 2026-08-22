@@ -1,4 +1,4 @@
-"""Model ladder behaviour (§9) — especially the monotone-constraint contract.
+"""Model ladder behaviour — especially the monotone-constraint contract.
 
 B2 is where ⛔ monotonic constraints actually apply: LightGBM accepts them
 with the L2 objective and REJECTS them with the built-in quantile objective.

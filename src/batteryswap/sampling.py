@@ -1,4 +1,4 @@
-"""Cutoff generation for training-example construction (§7).
+"""Cutoff generation for training-example construction.
 
 ⛔ The cutoff distribution is a first-class design decision: it must MATCH the
 evaluation truncation distribution, estimated from the evaluation series

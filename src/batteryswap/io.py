@@ -1,14 +1,14 @@
 """Loading, schema validation, and dtype enforcement for the official files.
 
 Schemas below are the REAL ones, verified field-by-field against the
-2026-08-14 release (not the provisional guesses the brief sketched):
+2026-08-14 release (not the provisional pre-release guesses):
 
     battery_metrics.parquet  end_time, voltage, temperature, device_id
     devices.csv              device_id, building_id, room_id, start_time, end_time
     eol_times.csv            device_id, end_time            (blank => censored)
     scenarios.json           48 scenarios: settings, start_time, travel_costs
 
-Note the naming the brief got wrong: the identifier is ``device_id`` (not
+Note the actual naming: the identifier is ``device_id`` (not
 ``battery_id``) and the timestamp column is ``end_time`` — the END of each
 one-hour averaging window.
 """

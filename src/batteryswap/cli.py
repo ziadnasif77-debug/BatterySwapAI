@@ -395,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
     dry.add_argument("--buildings", type=int, default=8)
     dry.add_argument("--alns-iterations", type=int, default=1500)
     dry.add_argument("--saa", action="store_true",
-                     help="optimize on scenario-averaged curves (section 12.5)")
+                     help="optimize on scenario-averaged curves")
     dry.add_argument("--report", action="store_true",
                      help="write coverage + q-sweep figures to reports/")
     dry.add_argument("--record", action="store_true",

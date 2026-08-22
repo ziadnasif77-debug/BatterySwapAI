@@ -2,7 +2,7 @@
 
 Transcribed from official NORA web pages on **2026-08-13**. Everything here is
 provisional until the official dataset/evaluator release; where the released
-files disagree, they win (§0 source-of-truth rule).
+files disagree, they win.
 
 ## Sources
 
@@ -20,7 +20,7 @@ files disagree, they win (§0 source-of-truth rule).
 | 2026-05-29 | Q&A webinar |
 | 2026-08-11 | **Registration deadline** (⚠ already passed as of this note) |
 | **2026-08-14** | **Dataset release** — Phase 0 starts the moment files land |
-| **2026-08-21** | **Final submission deadline** (7-day sprint, §20) |
+| **2026-08-21** | **Final submission deadline** |
 | 2026-09-01 | Winners announced |
 
 ## Eligibility & prizes
@@ -49,7 +49,7 @@ files disagree, they win (§0 source-of-truth rule).
   so NO numeric constant may be trusted until read from the released evaluator.
 - Submission: ordered work plan (data frame / CSV) of daily replacements,
   uploaded with code to a submission portal. Public leaderboard on submission;
-  hidden set for final scoring (⛔ §15: never tune against the leaderboard).
+  hidden set for final scoring (never tune against the leaderboard).
 - Released with the dataset: example Python code (loading, baseline
   prognostics, baseline planning) and evaluation/scoring code → these go in
   `docs/official/evaluator/` verbatim.
@@ -62,7 +62,7 @@ is already built and tested against synthetic data.
 1. Download release → `data/raw/` + `docs/official/` (verbatim, unmodified).
 2. `make data` — schema validation. Pin the real filenames and fix
    `io.py` schemas to match the documentation field by field.
-3. **Phase 0 (§5), in this order:**
+3. **Phase 0, in this order:**
    - Run the official baseline unmodified end-to-end; record its score (floor).
    - Transcribe every constant into `configs/cost_model.yaml`; flip the
      matching `unknowns.yaml` entries to `resolved`.
@@ -77,7 +77,7 @@ is already built and tested against synthetic data.
    feed it to `sampling.py` (currently a synthetic stand-in).
 6. Build the two things that cannot exist before the release: the **submission
    writer** (format unknown) and the **fast surrogate** + its
-   agreement test (§16.4, ≥1000 plans).
+   agreement test (≥1000 plans).
 7. Re-run `make cv` and the q sweep on real data — ⛔ the synthetic fleet has
    near-zero travel pressure, so the swept optimum has NOT yet been shown to
    sit above q\*. Re-measure before trusting any q.

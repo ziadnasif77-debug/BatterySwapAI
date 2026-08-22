@@ -1,4 +1,4 @@
-"""Phase 6 — the decision layer bridging predictions and optimization (§11).
+"""Phase 6 — the decision layer bridging predictions and optimization.
 
 g_b(d) = c_early * E[max(0, t_fail - d)] + c_late * E[max(0, d - t_fail)]
 
@@ -20,7 +20,7 @@ from .config import load_config
 
 def newsvendor_q(c_early: float, c_late: float) -> float:
     """The single-battery optimal quantile. Only correct with no travel cost —
-    treat as an initializer for the tunable q, not the answer (§11)."""
+    treat as an initializer for the tunable q, not the answer."""
     return c_early / (c_early + c_late)
 
 
@@ -35,7 +35,7 @@ def days_at_q(calibrated: pd.DataFrame, quantile_levels: list[float], q: float,
     failure-time distribution, floored to a whole day (replace on or before)
     and clipped into the horizon.
 
-    ⛔ q is a TUNABLE scalar, not the newsvendor value (§11). Initialize it at
+    ⛔ q is a TUNABLE scalar, not the newsvendor value. Initialize it at
     newsvendor_q() and sweep it against the evaluator — once trips are shared
     across a building, grouping already pulls batteries early, so the true
     optimum sits materially above the theoretical q*.

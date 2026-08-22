@@ -70,11 +70,48 @@ once per scenario and writes `submission.csv`.
 `plan()` opens no files and reads no configuration - everything it needs
 arrives as arguments. Tests pin this (`test_bundle_selfcontained.py`).
 
-## Model
+## Required packages
 
-scikit-learn `HistGradientBoostingRegressor`, one booster per quantile, with
-monotonic constraints. **Not LightGBM** - it is absent from the competition
-runtime, and a pickle carrying LightGBM boosters fails to load there.
+Python 3.10+. Everything needed is in `requirements.txt` (the competition's
+own runtime pins - pandas, numpy, scikit-learn, scipy, fastparquet,
+pydantic-settings, structlog, and the official scorer `batteryswap_public`):
+
+    pip install -r requirements.txt
+
+## How it works
+
+For each scenario the planner receives the device time series truncated at
+the scenario start, the device locations, the travel-time matrix, and the
+evaluation settings. It then:
+
+1. **Aggregates** the hourly series to per-device daily medians (robust to
+   noise and the diurnal temperature swing).
+2. **Extracts features** per device: multi-scale robust voltage slopes
+   (Theil-Sen over 7/30/90/180-day windows), voltage levels and spreads,
+   knee indicators, a cumulative-charge proxy, and temperature-residualised
+   voltage (voltage regressed on temperature per device, to remove the
+   seasonal confound).
+3. **Predicts remaining life** with one scikit-learn
+   `HistGradientBoostingRegressor` per quantile (0.05...0.90), with monotonic
+   constraints (e.g. lower voltage can never predict longer life),
+   non-crossing enforced across quantiles, and conformal offsets calibrated
+   on held-out buildings.
+4. **Chooses a swap day** per device at the q=0.12 quantile of its predicted
+   end-of-life distribution - deliberately early, because the late penalty is
+   20x the early one.
+5. **Filters**: devices well above the failure voltage are skipped, devices
+   whose data stopped long ago are skipped (their assumed end of life already
+   passed), and swaps are capped per scenario.
+6. **Batches and routes**: same-building swaps within a 14-day window merge
+   onto the earliest day, and rows within a day are ordered building-by-
+   building, because row order is the route the evaluator walks.
+
+The model is scikit-learn rather than a dedicated boosting library because
+the competition runtime pins its own package set - anything outside it fails
+to unpickle on the scoring machine.
+
+Full development repository (training code, tests, tuning sweeps):
+<https://github.com/ziadnasif77-debug/BatterySwapAI>
 
 ## Reproduce locally
 

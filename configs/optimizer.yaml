@@ -1,10 +1,10 @@
-# Optimizer parameters (§12). Internal algorithm knobs are ours to choose;
+# Optimizer parameters. Internal algorithm knobs are ours to choose;
 # every cost coefficient used inside the search comes from cost_model.yaml.
 
 decision:
   # q is a TUNABLE scalar initialized at the newsvendor optimum
   # q* = c_early / (c_early + c_late), then swept against the official
-  # evaluator (§11). "newsvendor" means: compute q* from cost_model.yaml.
+  # evaluator. "newsvendor" means: compute q* from cost_model.yaml.
   q_init: newsvendor
   q_sweep: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]   # multipliers on q*, clipped to (0, 1)
 

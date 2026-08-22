@@ -1,4 +1,4 @@
-"""Per-day sequencing under the daily hour cap (§12.4).
+"""Per-day sequencing under the daily hour cap.
 
 Given the buildings to visit on one day and per-building service time
 (swaps + room overheads), sequence them per worker: nearest-neighbor

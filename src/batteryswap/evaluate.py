@@ -1,4 +1,4 @@
-"""Thin wrapper around the OFFICIAL scorer (section 5.3).
+"""Thin wrapper around the OFFICIAL scorer.
 
 This module NEVER reimplements the cost function. It imports
 ``batteryswap_public`` - the package the competition ships and runs on its own
@@ -38,7 +38,7 @@ class OfficialEvaluatorMissingError(RuntimeError):
             f"The official evaluator is unavailable: {detail}\n"
             f"Install it with: pip install batteryswap_public fastparquet "
             f"structlog pydantic-settings\n"
-            f"Reimplementing the scorer is forbidden (section 18)."
+            f"Reimplementing the scorer is forbidden."
         )
 
 

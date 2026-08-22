@@ -1,4 +1,4 @@
-"""Decision layer + opportunistic rule + SAA (§11, §12, §12.5)."""
+"""Decision layer + opportunistic rule + SAA."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _calibrated(n: int = 6, seed: int = 0) -> pd.DataFrame:
 
 
 def test_newsvendor_q_matches_the_identity():
-    # lateness 10x costlier -> replace at the 0.09 quantile (§11)
+    # lateness 10x costlier -> replace at the 0.09 quantile
     assert abs(newsvendor_q(1.0, 10.0) - 1 / 11) < 1e-12
 
 
@@ -46,7 +46,7 @@ def test_days_at_q_respects_the_horizon():
 
 
 def test_cost_curve_minimum_sits_near_the_newsvendor_quantile():
-    """The single-battery, no-travel optimum is q* — the identity §11 relies on."""
+    """The single-battery, no-travel optimum is q* — the newsvendor identity."""
     c_early, c_late = 1.0, 9.0
     levels = np.asarray(QUANTILES, dtype=float)
     q_row = np.array([100.0, 300.0, 500.0, 700.0, 900.0])
@@ -96,7 +96,7 @@ def test_opportunistic_upgrade_is_deterministic():
 
 def test_saa_scenarios_converge_to_the_analytic_curves():
     """With LINEAR penalties, scenario averaging must reproduce the analytic
-    integral — the check that the SAA path is wired correctly (§12.5)."""
+    integral — the check that the SAA path is wired correctly."""
     cal = _calibrated(n=4, seed=3)
     c_early, c_late, horizon = 0.05, 0.5, 200
 

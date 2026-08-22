@@ -1,4 +1,4 @@
-"""Construction heuristic: regret-k insertion (§12.1).
+"""Construction heuristic: regret-k insertion.
 
 Regret-k: at each step, for every unassigned battery compute the cost of its
 best insertion and its k-th best; insert the battery with the LARGEST regret

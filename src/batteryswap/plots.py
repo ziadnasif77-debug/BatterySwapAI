@@ -1,4 +1,4 @@
-"""Report figures (§10.3 — the coverage plot is a mandatory artifact).
+"""Report figures — the coverage plot is a mandatory artifact.
 
 Headless by construction: the Agg backend is selected before pyplot is
 imported so `make` targets and CI produce figures without a display.
@@ -20,7 +20,7 @@ def plot_coverage(coverage: object, path: str | Path | None = None,
                   title: str = "Calibrated quantile coverage") -> Path:
     """Nominal vs empirical coverage against the diagonal.
 
-    ⛔ §10.3: if the 0.10 quantile does not contain ~10 % of true failures, fix
+    ⛔ If the 0.10 quantile does not contain ~10 % of true failures, fix
     calibration before touching the optimizer. This plot is how that is read.
     """
     path = Path(path) if path else REPORTS_DIR / "coverage.png"
@@ -47,7 +47,7 @@ def plot_q_sweep(sweep: object, path: str | Path | None = None,
                  q_star: float | None = None) -> Path:
     """Final cost against q, with the newsvendor q* marked.
 
-    The gap between q* and the sweep minimum is the empirical answer to §11's
+    The gap between q* and the sweep minimum is the empirical answer to the
     central claim — that trip sharing moves the optimum above the theoretical
     value — and belongs in the README either way.
     """

@@ -1,5 +1,5 @@
 """ALNS — adaptive large neighborhood search, the primary improvement engine
-(§12.2). Ruin-and-recreate with adaptive operator weights and simulated-
+. Ruin-and-recreate with adaptive operator weights and simulated-
 annealing acceptance.
 
 The objective callback must be the official evaluator or the verified

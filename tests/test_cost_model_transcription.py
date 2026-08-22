@@ -1,4 +1,4 @@
-"""§5.2 — configs/cost_model.yaml must match the official source, exactly.
+"""configs/cost_model.yaml must match the official source, exactly.
 
 The constants live in data/raw/scenarios.json (licensed, never committed), so
 this test self-activates when the data is present and skips otherwise. It is

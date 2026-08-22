@@ -82,7 +82,7 @@ def scenario_cutoffs(truth: pd.DataFrame, scenarios: list[Scenario],
 
     ⛔ The cutoff distribution is not estimated here - the scenarios ARE the
     evaluation cutoffs, so training and evaluation see identical truncation by
-    construction (section 7).
+    construction.
     """
     rows = []
     for s in scenarios:

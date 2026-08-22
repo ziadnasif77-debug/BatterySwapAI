@@ -18,6 +18,10 @@ artifacts/
 submission/
 submission.csv
 
+# Reports and experiment logs derive from the licensed dataset - local only.
+reports/
+experiments/
+
 # Pipeline outputs
 predictions/
 decision/

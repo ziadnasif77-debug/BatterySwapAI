@@ -1,9 +1,9 @@
-"""Experiment tracking (§17) — build for the publication track from day one,
+"""Experiment tracking — build for the publication track from day one,
 because retrofitting rigor at the end is impossible.
 
 Every run gets its own directory holding config, metrics, git SHA, and an
 environment lockfile. Nothing here touches the submission path, so the
-non-determinism of a wall-clock directory name is safe: §15's determinism
+non-determinism of a wall-clock directory name is safe: the determinism
 requirement is about the produced submission, not about run bookkeeping.
 """
 

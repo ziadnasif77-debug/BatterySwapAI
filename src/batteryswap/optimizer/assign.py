@@ -1,4 +1,4 @@
-"""Building -> day -> worker assignment via CP-SAT (§12.3), used when the
+"""Building -> day -> worker assignment via CP-SAT, used when the
 subproblem is small enough to solve exactly.
 
 The model is deliberately deferred: its constraints (worker count, day cap,
@@ -31,7 +31,7 @@ def cpsat_assign(buildings: list[str], candidate_days: list[int],
     from ortools.sat.python import cp_model  # imported late: heavy dependency
 
     raise NotImplementedError(
-        f"CP-SAT model construction is deferred (§20 cut order). Constants load "
+        f"CP-SAT model construction is deferred (cut for time). Constants load "
         f"OK: workers={n_workers}, day_cap={day_cap}h, week_cap={week_cap}h. "
         f"cp_model={cp_model.__name__} available."
     )

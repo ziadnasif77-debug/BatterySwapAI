@@ -1,4 +1,4 @@
-"""Multi-period inventory-routing optimizer (§12).
+"""Multi-period inventory-routing optimizer.
 
 Shared data model:
 

@@ -1,4 +1,4 @@
-"""The opportunistic-swap rule (§12).
+"""The opportunistic-swap rule.
 
 When a worker is already in building B on day d, also replace every battery
 there whose loss from being serviced early is smaller than its share of a
@@ -11,7 +11,7 @@ battery makes the threshold so generous that the schedule collapses into
 "replace everything at the first visit". The cost is therefore divided across
 the batteries that would otherwise share that future trip.
 
-⛔ The trip cost is PER BUILDING (§5.4): a visit to the far cluster justifies
+⛔ The trip cost is PER BUILDING: a visit to the far cluster justifies
 sacrificing far more remaining life than a visit next door. Callers pass a
 per-building dict measured from the evaluator sensitivity study.
 """
@@ -72,7 +72,7 @@ def per_building_trip_cost(buildings: list[str], travel: object,
 
     ⛔ PROXY ONLY: building overhead plus a round trip at the building's mean
     travel leg. Phase 0 replaces this with the MEASURED marginal cost per
-    building from the evaluator sensitivity study (§5.4) — add and remove a
+    building from the evaluator sensitivity study — add and remove a
     trip, read the curve.
     """
     out = {}

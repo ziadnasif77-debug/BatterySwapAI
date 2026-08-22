@@ -1,4 +1,4 @@
-"""Phase 8 — offline end-to-end harness (§13).
+"""Phase 8 — offline end-to-end harness.
 
 Takes held-out BUILDINGS (never random rows), applies realistic truncations
 drawn from the estimated evaluation distribution, runs the full pipeline

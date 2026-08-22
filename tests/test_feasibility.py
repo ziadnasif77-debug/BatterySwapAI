@@ -1,4 +1,4 @@
-"""§16.5 — every emitted schedule respects worker count, hour cap, and travel
+"""Feasibility — every emitted schedule respects worker count, hour cap, and travel
 times. Full assertions activate once cost-model constants are resolved; the
 routing arithmetic is testable now on synthetic geometry."""
 

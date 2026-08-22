@@ -7,8 +7,8 @@ final cost + KPIs.
 ⛔ Scope guard. Everything here runs on synthetic_fleet() data against
 SyntheticCostModel — arbitrary rehearsal constants that never touch
 configs/cost_model.yaml, the real pipeline, or any submission artifact, so the
-no-invention rule (§0) is preserved. SyntheticCostModel is NOT the official
-evaluator and is not a surrogate for it (§5.3/§18 govern those); it exists so
+no-invention rule is preserved. SyntheticCostModel is NOT the official
+evaluator and is not a surrogate for it; it exists so
 that on data day the only work left is transcribing real constants and
 swapping the objective for the official scorer.
 """
@@ -165,7 +165,7 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
     labels = pd.DataFrame(labels)
     usable = labels[~labels["censored"]]
 
-    # grouped split by BUILDING (§7): never rows, never batteries within building
+    # grouped split by BUILDING: never rows, never batteries within building
     buildings = sorted(fleet.locations["building_id"].unique())
     n_train = max(1, round(0.5 * len(buildings)))
     n_calib = max(1, round(0.25 * len(buildings)))
@@ -223,7 +223,7 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
     analytic_curves = {b: g.sort_values("day")["expected_penalty"].to_numpy()
                        for b, g in curve_df.groupby("battery_id")}
 
-    # SAA (§12.5): scenario-averaged curves. With LINEAR penalties these
+    # SAA: scenario-averaged curves. With LINEAR penalties these
     # converge to the analytic curves — the deviation below is that check.
     # Their real value arrives with the official penalty shape, which may be
     # piecewise or capped; the objective signature is identical either way.
@@ -281,7 +281,7 @@ def run_dry_run(seed: int = 0, n_buildings: int = 8,
         config=ALNSConfig(iterations=alns_iterations, seed=seed),
     )
 
-    # --- q sweep (§11) -------------------------------------------------------
+    # --- q sweep -------------------------------------------------------
     # Swept WITH the opportunistic rule applied, because that is how the
     # pipeline ships — sweeping a rule you do not ship measures nothing.
     q_star = newsvendor_q(cm.c_early_per_hour, cm.c_late_per_hour)

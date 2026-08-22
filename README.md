@@ -17,7 +17,7 @@ noisy sensor time-series → probabilistic remaining-life estimates
 ```
 
 **The objective is total operational cost.** Prediction error (MAE/RMSE) is a
-diagnostic, never a target. See §Architecture below for how the two stages are
+diagnostic, never a target. See the Architecture section below for how the two stages are
 decoupled through an explicit decision layer.
 
 ## ⚠️ Project status: end-to-end on the official data — with one recorded exception
@@ -39,7 +39,7 @@ reimplementation. **It has since been located.** It is the PyPI package
 `batteryswap_public`, pulled in by the
 [official example repository](https://huggingface.co/batteryswapaichallenge/BatterySwapAI2026-Example)
 (MIT). [`evaluate.py`](src/batteryswap/evaluate.py) now imports and calls it
-directly, as §5.3 always required, and every number below comes from it.
+directly, and every number below comes from it.
 
 ```bash
 pip install batteryswap_public fastparquet structlog pydantic-settings
@@ -61,7 +61,7 @@ were not:
 | A8 — day indexing | ❌ days are **dates**, not 1-based integers |
 | A9 — late penalty capped at the window edge | ❌ **uncapped** in both directions |
 
-`tests/test_evaluator_agreement.py` — §16.4, dormant for the whole project —
+`tests/test_evaluator_agreement.py` — dormant for the whole project —
 is finally live, and measures that divergence instead of assuming it away.
 
 ### The submission is a Planner, not a CSV
@@ -95,7 +95,7 @@ passing every local test:
    ImportError on load. The shipped model is therefore
    [`SklearnQuantileModel`](src/batteryswap/models/sklearn_quantile.py). The
    forced move is an upgrade: `HistGradientBoostingRegressor` accepts
-   `monotonic_cst` **together with** quantile loss, so §9's monotone
+   `monotonic_cst` **together with** quantile loss, so monotone
    constraints are finally active on the primary model — LightGBM refuses that
    combination.
 2. **PyYAML is not installed there either**, and `config.py` imported it at
@@ -112,9 +112,9 @@ lacks (function-local and `try`-guarded imports are fine, which is exactly how
 python -m batteryswap.cli official --bundle submission
 ```
 
-### What the official release changed about the brief
+### What the official release settled
 
-| The brief assumed | The release says |
+| Assumed pre-release | The release says |
 |---|---|
 | travel matrix in **minutes** | **hours** (`travel_costs[].hours`), 0.03 h → 10.25 h |
 | penalties per **hour** | per **day**: early 0.5, late 10.0 → **ratio 20:1**, q\* = 0.048 |
@@ -124,7 +124,7 @@ python -m batteryswap.cli official --bundle submission
 | estimate the truncation distribution | the **48 weekly scenarios are the cutoffs** — no estimation needed |
 | — (never mentioned) | there is a **depot** (`base_location`/`base_room`) per scenario |
 
-Full transcription with every JSON key: [reports/cost_model.md](reports/cost_model.md).
+Every transcribed constant is pinned by `tests/test_cost_model_transcription.py`.
 
 ### What the data itself forced
 
@@ -168,7 +168,7 @@ python -m batteryswap.cli cv
 | Model B6: sequence | `src/batteryswap/models/sequence.py` | ⛔ gated on measured final-cost win over B3 |
 | Conformal calibration (CQR, grouped) | `src/batteryswap/calibration.py` | ✅ implemented + coverage diagnostics |
 | Decision layer g_b(d) + q-rule | `src/batteryswap/decision.py` | ✅ running on the official penalties |
-| q sweep (§11) | `src/batteryswap/tuning.py` | ✅ implemented — swept with the shipped post-processing |
+| q sweep | `src/batteryswap/tuning.py` | ✅ implemented — swept with the shipped post-processing |
 | SAA lifetime scenarios | `src/batteryswap/saa.py` | ✅ implemented — swaps into any optimizer unchanged |
 | Experiment tracking (config + git SHA + env) | `src/batteryswap/experiments.py` | ✅ implemented |
 | Report figures (coverage, q sweep) | `src/batteryswap/plots.py` | ✅ implemented |
@@ -177,7 +177,7 @@ python -m batteryswap.cli cv
 | ALNS | `src/batteryswap/optimizer/alns.py` | ✅ implemented (adaptive weights, SA acceptance) |
 | Opportunistic-swap rule (amortized per building) | `src/batteryswap/optimizer/opportunistic.py` | ✅ implemented; trip cost is a proxy until the Phase 0 sensitivity study |
 | Per-day routing | `src/batteryswap/optimizer/routing.py` | ✅ implemented (NN + 2-opt, day-cap accounting) |
-| CP-SAT assignment | `src/batteryswap/optimizer/assign.py` | ⏳ deferred (§20 cut order) |
+| CP-SAT assignment | `src/batteryswap/optimizer/assign.py` | ⏳ deferred (cut for time) |
 | Offline harness | `src/batteryswap/simulate.py` | ⏳ wired in Phase 8 (real data) |
 | Synthetic dry-run harness | `src/batteryswap/dryrun.py` | ✅ full chain end-to-end, `make dry-run` |
 
@@ -195,7 +195,7 @@ make submit        # raw data → submissions/submission.csv, deterministic
 make sweep         # selection-bar sweep against the scorer
 ```
 
-## Testing (§16 of the project brief)
+## Testing
 
 | # | Test | File | State |
 |---|---|---|---|
@@ -227,11 +227,11 @@ to 10 decimal places.
 
 Reproduce: `python -m batteryswap.cli official --bundle submission`.
 
-### §11 confirmed: the swept q sits above the theoretical one
+### Confirmed: the swept q sits above the theoretical one
 
 The newsvendor identity gives `q* = 0.5/(0.5+10) = 0.0476`. Swept against the
 official scorer, the optimum is **`q = 0.12`, 2.5× the theoretical value** —
-the effect §11 predicts once trips are shared, and one the pre-release
+the effect predicted once trips are shared, and one the pre-release
 synthetic rehearsal could not demonstrate because its fleet had no travel
 pressure. Final knobs: `q=0.12`, batching window 14 days, voltage gate 0.50 V,
 cap 25.
@@ -267,12 +267,12 @@ subset alone would have shipped the worse configuration.
 Calibrated coverage on held-out buildings tracks nominal closely (0.05→0.075,
 0.10→0.105, 0.25→0.252, 0.50→0.500, 0.75→0.750, 0.90→0.900) at a median MAE
 of 29 days. Note that MAE barely moved across the fixes above while cost fell
-by more than half — the §13 point, observed again on real data: **accuracy
+by more than half — observed again on real data: **accuracy
 explains the cost, it does not select the plan.**
 
 ### What the data audit found
 
-`make audit` → [reports/data_audit.md](reports/data_audit.md).
+`make audit` writes reports/data_audit.md locally.
 
 - **Seasonal confound is real and large.** Median voltage-on-temperature
   coefficient **+0.0063 V/°C**, positive for **90 %** of devices. Across a
@@ -288,7 +288,7 @@ explains the cost, it does not select the plan.**
 1. **Only one split is available to us.** The release gave a flat set of files
    — one split. The official metric scores `public` and `private`; our numbers
    are a backtest on what we have, so they are an estimate of leaderboard
-   performance, not a leaderboard result. ⛔ §15 still applies: do not tune
+   performance, not a leaderboard result. ⛔ Do not tune
    against the public board when it appears.
 2. ~~The submission has not been run through the official Docker image.~~
    **Done.** The official image was built and the full path — `script.py` →

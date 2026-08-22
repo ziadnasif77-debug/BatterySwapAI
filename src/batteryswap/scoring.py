@@ -76,7 +76,7 @@ from .optimizer.routing import nearest_neighbor_order, two_opt
 
 @dataclass
 class CostBreakdown:
-    """Every component separately (section 3: reports/score_breakdown.json)."""
+    """Every cost component, reported separately."""
     early_penalty: float = 0.0
     late_penalty: float = 0.0
     work_cost: float = 0.0            # regular + overtime-weighted hours

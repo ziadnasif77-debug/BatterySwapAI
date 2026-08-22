@@ -1,4 +1,4 @@
-"""Phase 5 — Conformalized Quantile Regression grouped by building (§10).
+"""Phase 5 — Conformalized Quantile Regression grouped by building.
 
 Raw quantiles are not calibrated on unseen buildings; every downstream
 decision consumes CALIBRATED quantiles only. Coverage diagnostics (marginal
@@ -58,7 +58,7 @@ def conditional_coverage(pred_q: pd.DataFrame, y_true: pd.Series,
                          condition: pd.Series, quantiles: list[float]) -> pd.DataFrame:
     """Coverage per condition group (lifetime tercile, truncation fraction,
     temperature regime, ...). Marginal coverage can be perfect while the tail
-    is wrong exactly where it matters (§10.4)."""
+    is wrong exactly where it matters."""
     frames = []
     for value, idx in y_true.groupby(condition).groups.items():
         sub = coverage_table(pred_q.loc[idx], y_true.loc[idx], quantiles)

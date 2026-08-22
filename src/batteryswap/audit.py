@@ -1,9 +1,9 @@
-"""Phase 1 - data audit (section 6). Produces reports/data_audit.md.
+"""Phase 1 - data audit. Produces reports/data_audit.md.
 
 Covers schema and dtypes as loaded; counts per device/room/building; sampling
 regularity and gaps; missing values; distributions; the lifetime distribution
 and its censoring; installation clustering within buildings; the scenario
-(cutoff) structure; plus the two protective audits the brief singles out -
+(cutoff) structure; plus the two protective audits that matter most here -
 knee detection and the seasonal voltage~temperature confound.
 """
 
@@ -30,7 +30,7 @@ def gap_distribution(metrics: pd.DataFrame) -> pd.Series:
 def temperature_confound(metrics: pd.DataFrame, min_rows: int = 48) -> pd.DataFrame:
     """Per-device OLS of voltage on temperature. If the coefficient
     distribution is materially non-zero, every raw-voltage feature is partly a
-    thermometer (section 6)."""
+    thermometer."""
     rows = []
     for device_id, g in metrics.groupby("device_id", observed=True):
         mask = g["voltage"].notna() & g["temperature"].notna()
@@ -207,7 +207,7 @@ def write_audit_report(data: RawData, path: str | Path | None = None) -> Path:
          f"{data.scenarios[0].start_time.date()} .. {data.scenarios[-1].start_time.date()}"),
         f"- planning window **{data.scenarios[0].horizon_days} days**",
         ("- The scenarios *are* the evaluation cutoffs, so training examples are "
-         "built at exactly those timestamps. The brief's instruction to estimate "
+         "built at exactly those timestamps. The usual need to estimate "
          "the truncation distribution from evaluation series lengths does not "
          "apply to this release - the distribution is given."),
         "",

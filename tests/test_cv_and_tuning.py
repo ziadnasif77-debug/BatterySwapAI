@@ -1,4 +1,4 @@
-"""Grouped CV (§7) and the q sweep (§11)."""
+"""Grouped CV and the q sweep."""
 
 from __future__ import annotations
 

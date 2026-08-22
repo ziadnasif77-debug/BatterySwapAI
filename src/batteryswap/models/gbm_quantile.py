@@ -1,15 +1,15 @@
-"""B3 — LightGBM quantile regression, the primary model (§9).
+"""B3 — LightGBM quantile regression, the primary model.
 
 Hard requirements implemented here:
 - ⛔ Non-crossing quantiles: enforced by isotonic sorting across the quantile
   axis after prediction (tests/test_quantile_ordering.py).
-- Monotonic constraints (§9): LightGBM REJECTS ``monotone_constraints``
+- Monotonic constraints: LightGBM REJECTS ``monotone_constraints``
   combined with the built-in quantile objective (its per-leaf renormalization
   is incompatible) — discovered in the synthetic dry run, raises
   LightGBMError. The constraint table below is therefore applied to point-
   objective models (B2) only; for B3 the candidate mechanism is a smoothed-
   pinball custom objective WITH constraints, gated on a measured final-cost
-  win (§8/§13) once real data exists.
+  win once real data exists.
 """
 
 from __future__ import annotations

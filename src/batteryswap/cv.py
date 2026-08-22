@@ -1,4 +1,4 @@
-"""Grouped cross-validation (§7).
+"""Grouped cross-validation.
 
 ⛔ GroupKFold on ``building_id``, always. Never a random row split, never a
 random battery split within a building — evaluation contains unseen buildings,
@@ -6,7 +6,7 @@ so any split that lets one building appear on both sides reports a number the
 hidden set will not reproduce.
 
 ⛔ Per-fold results are reported, not just the mean: variance across buildings
-is the quantity that predicts hidden-set behaviour (§17).
+is the quantity that predicts hidden-set behaviour.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def cross_validate_quantiles(X: pd.DataFrame, y: pd.Series, groups: pd.Series,
     """Fit B3 per fold; return one diagnostics row per fold.
 
     No calibration here on purpose: this measures the RAW model. Calibration is
-    evaluated separately (§10) because it needs its own held-out buildings.
+    evaluated separately because it needs its own held-out buildings.
     """
     rows = []
     for fold, (tr, va) in enumerate(grouped_folds(groups, n_splits)):

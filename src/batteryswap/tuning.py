@@ -1,6 +1,6 @@
-"""The q sweep (§11) — the single highest-value tuning knob in the system.
+"""The q sweep — the single highest-value tuning knob in the system.
 
-⛔ Never cut this (§20). The newsvendor identity q* = c_early/(c_early+c_late)
+The newsvendor identity q* = c_early/(c_early+c_late)
 is only optimal for ONE battery with NO travel cost. Once trips are shared
 across a building, grouping already pulls batteries early; pushing deadlines
 earlier on top of that is pure waste. So q is swept, not derived.

@@ -1,13 +1,13 @@
 """Synthetic fleet generator — plumbing rehearsal data, NEVER competition data.
 
-Shapes match the documented schema (§2 of the brief): hourly averages of
+Shapes match the documented schema: hourly averages of
 voltage/temperature, plateau -> knee -> collapse discharge, seasonal
 temperature coupling, per-device lifetime spread, install-date clustering
 within buildings, and a building x building travel matrix in minutes.
 
 Every constant in here is an arbitrary SYNTHETIC choice used only to exercise
 code paths before the official release. Nothing from this module may feed the
-real pipeline: the no-invention rule (§0) still holds because these values
+real pipeline: the no-invention rule still holds because these values
 never touch configs/cost_model.yaml or any submission artifact.
 """
 
@@ -70,7 +70,7 @@ def synthetic_fleet(n_buildings: int = 8, seed: int = 0,
     idx = 0
     for bi in range(n_buildings):
         building = f"bl{bi:03d}"
-        # installations cluster within a building (§2): shared base + small jitter
+        # installations cluster within a building: shared base + small jitter
         base_install = pd.Timestamp("2023-06-01") + pd.Timedelta(days=int(rng.integers(0, 120)))
         n_rooms = int(rng.integers(rooms_per_building[0], rooms_per_building[1] + 1))
         for ri in range(n_rooms):

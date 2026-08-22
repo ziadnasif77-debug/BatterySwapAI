@@ -124,7 +124,7 @@ def test_plan_opens_no_files_at_all(monkeypatch):
 
 def test_planning_is_deterministic():
     """Two runs must give the identical plan - the submission is scored once,
-    but reproducibility is a competition requirement (section 15)."""
+    but reproducibility is a competition requirement."""
     data, locations, travel = _problem()
     first = _planner().plan(data, locations, travel, _Settings())
     second = _planner().plan(data, locations, travel, _Settings())

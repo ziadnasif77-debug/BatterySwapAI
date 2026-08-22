@@ -1,6 +1,6 @@
 # Registry of every quantity that could not be read from an official file.
 # Each entry: value (UNKNOWN until resolved), where it will come from,
-# resolution status, and what it blocks. §19.6 requires this file to reach
+# resolution status, and what it blocks. The goal is to reach
 # zero unresolved entries (or documented fallbacks) before submission.
 #
 # Status values: unresolved | resolved | fallback-documented
@@ -95,7 +95,7 @@ unknowns:
     blocks: "Decision layer g_b(d); newsvendor q*."
     note: >-
       ⚠ The FAQ said "per missed HOUR of ideal lifetime"; the released file says
-      per DAY. Source-of-truth rule (§0): the file wins.
+      per DAY. Source of truth: the official file wins.
 
   late_replacement_penalty:
     value: "10.0 per DAY (late_replacement_penalty_daily) — ratio 20:1"

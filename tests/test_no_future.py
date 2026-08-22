@@ -1,4 +1,4 @@
-"""§16.2 — features at cutoff t must be byte-identical whether or not data
+"""No-future guarantee — features at cutoff t must be byte-identical whether or not data
 after t exists in the frame."""
 
 import pandas as pd

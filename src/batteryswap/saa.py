@@ -1,4 +1,4 @@
-"""Sample Average Approximation over lifetime scenarios (§12.5).
+"""Sample Average Approximation over lifetime scenarios.
 
 Draw 50-200 failure-time scenarios per battery from the CALIBRATED
 distributions and optimize expected cost across them, instead of against one
@@ -26,7 +26,7 @@ def draw_failure_scenarios(calibrated: pd.DataFrame, quantile_levels: list[float
     """Inverse-CDF sampling over the calibrated quantile grid.
 
     Returns (battery_ids, hours[n_batteries, n_scenarios]). Deterministic given
-    `seed` — a submission-path requirement (§15).
+    `seed` — a submission-path requirement.
     """
     rng = np.random.default_rng(seed)
     levels = np.asarray(quantile_levels, dtype=float)

@@ -1,4 +1,4 @@
-"""§16.1 — fails if any identifier column can reach a model's feature matrix."""
+"""No-leakage guarantee — fails if any identifier column can reach a model's feature matrix."""
 
 import pandas as pd
 import pytest

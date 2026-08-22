@@ -3,7 +3,7 @@
 Place here, verbatim and unmodified:
 
 - `evaluator/` — the official scoring/baseline code. `batteryswap.evaluate`
-  imports it directly; reimplementing it is forbidden (§18).
+  imports it directly; reimplementing it is forbidden.
 - competition rules and dataset documentation.
 
 Phase 0 (reverse-engineering the evaluator) starts the moment these files

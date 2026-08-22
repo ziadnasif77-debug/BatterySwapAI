@@ -1,9 +1,9 @@
 """B6 — sequence models (TCN / Temporal Fusion Transformer).
 
-⛔ GATED (§9): this module stays a stub until B3 exists, the offline harness
+⛔ GATED: this module stays a stub until B3 exists, the offline harness
 runs, and a sequence model demonstrates a FINAL-COST win over B3 on grouped
 held-out buildings. Enabling it in configs/model.yaml without that evidence
-violates the brief's anti-pattern list (§18).
+violates the project's anti-pattern rules.
 """
 
 from __future__ import annotations

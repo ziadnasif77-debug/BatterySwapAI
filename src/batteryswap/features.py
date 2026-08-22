@@ -1,4 +1,4 @@
-"""Deterministic, leak-free feature engineering (§8).
+"""Deterministic, leak-free feature engineering.
 
 Contract:
 - Every feature is computed from `history[history.timestamp <= cutoff]` only.
@@ -98,7 +98,7 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
     f["v_accel_30_180"] = slopes[30] - slopes[180]
     f["v_accel_7_90"] = slopes[7] - slopes[90]
 
-    # --- knee indicator group (§8, physics-derived) --------------------------
+    # --- knee indicator group --------------------------
     with np.errstate(divide="ignore", invalid="ignore"):
         f["knee_slope_ratio"] = (slopes[30] / slopes[180]
                                  if slopes[180] != 0.0 and np.isfinite(slopes[180])
@@ -112,7 +112,7 @@ def compute_features(history: pd.DataFrame, cutoff: pd.Timestamp,
     else:
         f["cum_charge_proxy"] = np.nan
 
-    # --- temperature confound removal (§8, "the important group") ------------
+    # --- temperature confound removal ------------
     mask = np.isfinite(v) & np.isfinite(temp)
     # A stuck temperature sensor gives zero variance, and linregress raises on
     # it. Real fleets have such devices, so fall back rather than crash the

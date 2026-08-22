@@ -1,13 +1,13 @@
-"""B2 — LightGBM point regression, the serious baseline (§9).
+"""B2 — LightGBM point regression, the serious baseline.
 
-This is the level where the ⛔ monotonic constraints of §9 actually apply:
+This is the level where monotonic constraints actually apply:
 LightGBM accepts ``monotone_constraints`` with the L2/L1 objectives but
 rejects them with the built-in quantile objective (see gbm_quantile.py). B2
 therefore ships the constrained model, and its cost gap to B3 is the evidence
 for what the constraints are worth.
 
 B2 produces a POINT estimate. ⛔ It must never be fed straight to the
-scheduler (§18) — it exists as the control for B3.
+scheduler — it exists as the control for B3.
 """
 
 from __future__ import annotations

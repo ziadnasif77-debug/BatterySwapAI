@@ -1,4 +1,4 @@
-"""§16.7 — submission matches the official format exactly, including dtypes.
+"""Schema guarantee — submission matches the official format exactly, including dtypes.
 
 The official column names / dtypes / day-indexing base are UNKNOWN until the
 rules are read; this test asserts the guard holds and self-activates the

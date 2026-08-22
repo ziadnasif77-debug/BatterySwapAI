@@ -1,4 +1,4 @@
-# Model hyperparameters. Starting values follow §9 of the brief and are a
+# Model hyperparameters. Starting values are a
 # tuning starting point, not a trusted configuration.
 
 quantiles: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
@@ -15,7 +15,7 @@ gbm_quantile:                 # B3 — primary model
   feature_fraction: 0.7
   bagging_fraction: 0.8
   bagging_freq: 1
-  # Monotonic constraints are mandatory (§9): RUL must not increase as
+  # Monotonic constraints: RUL must not increase as
   # voltage decreases or as age increases. The mapping feature -> direction
   # is built in gbm_quantile.py from feature names.
 

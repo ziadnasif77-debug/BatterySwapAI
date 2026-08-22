@@ -6,7 +6,7 @@ in ``scoring.py``. The official package (``batteryswap_public``, pulled in by
 the official example repository) has since been located, so the checks below
 are live.
 
-The brief framed this test as "surrogate == official within tolerance". That
+This test was originally framed as "surrogate == official within tolerance". That
 framing no longer applies, because nothing on the official path uses a
 surrogate any more - ``evaluate.py`` calls the real scorer directly, and
 ``scoring.py`` is confined to the synthetic dry run. What is worth testing now

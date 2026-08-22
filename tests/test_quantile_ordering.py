@@ -1,4 +1,4 @@
-"""§16.3 — no quantile crossing, at any level, for any battery."""
+"""Non-crossing guarantee — no quantile crossing, at any level, for any battery."""
 
 import numpy as np
 

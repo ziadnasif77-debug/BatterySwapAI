@@ -1,4 +1,4 @@
-"""§16.6 — two runs from identical state produce identical outputs.
+"""Determinism — two runs from identical state produce identical outputs.
 
 The full-submission determinism test activates when `make submit` is wired;
 until then the deterministic building blocks are held to the same standard.

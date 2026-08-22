@@ -2,7 +2,7 @@
 
 The official release supplies `eol_times.csv`, but only 82 of 461 devices
 (17.8 %) carry a recorded EOL - the other 379 are right-censored. Dropping
-them would bias the lifetime distribution short (section 7), and assuming they
+them would bias the lifetime distribution short, and assuming they
 all fail would invent failures the data does not show. So ground truth is
 assembled in three tiers, most authoritative first:
 

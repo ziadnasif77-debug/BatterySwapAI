@@ -1,4 +1,4 @@
-"""Diagnostic metrics (§13).
+"""Diagnostic metrics.
 
 ⛔ These are DIAGNOSTICS, never selection targets. Final cost decides which
 model ships; MAE/RMSE/pinball/coverage exist to explain that cost. Every

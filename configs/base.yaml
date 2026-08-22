@@ -22,6 +22,6 @@ runtime:
   max_inference_minutes: 30
 
 cv:
-  # GroupKFold on building_id — hard requirement (§7 of the brief).
+  # GroupKFold on building_id — evaluation contains unseen buildings.
   n_splits: 5
   group_column: building_id

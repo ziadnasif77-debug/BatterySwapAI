@@ -25,7 +25,7 @@ time:
   room_change_overhead_hours: 0.5
   # JSON: settings.time_per_building_change_hours
   building_change_overhead_hours: 1.0
-  # travel_costs[].hours — the matrix is in HOURS (the brief guessed minutes)
+  # travel_costs[].hours — the matrix is in HOURS (NOT minutes)
   travel_time_units: hours
 
 workforce:
