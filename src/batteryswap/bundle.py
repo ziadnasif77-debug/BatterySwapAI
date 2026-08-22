@@ -166,11 +166,16 @@ def build_bundle(planner, out_dir: str | Path = "submission",
     if licence.exists():
         shutil.copy2(licence, out / "LICENSE")
 
-    # 1. the harness files, verbatim from the official repo when available
+    # 1. the harness files from the official repo when available
     for name in ("script.py", "requirements.txt", "Dockerfile"):
         source = official / name
         if source.exists():
             shutil.copy2(source, out / name)
+
+    dockerfile = out / "Dockerfile"
+    if dockerfile.exists():
+        dockerfile.write_text(_patch_dockerfile(
+            dockerfile.read_text(encoding="utf-8")), encoding="utf-8")
 
     # 2. our package, vendored - only the modules plan() reaches
     vendored = example / "batteryswap"
@@ -189,6 +194,38 @@ def build_bundle(planner, out_dir: str | Path = "submission",
         pickle.dump(planner, fh)
 
     return out
+
+
+def _patch_dockerfile(text: str) -> str:
+    """Drop the baked-in split selection.
+
+    The official example bakes ``ENV BATTERYSWAP_SPLITS=train`` into the image
+    so that a local ``docker run`` scores against the only split an entrant
+    has. That default is wrong for a real submission: the organisers score
+    ``public`` and ``private``. If their harness builds this Dockerfile without
+    overriding the variable, the submission would generate train rows only and
+    both real splits would come back as infinity.
+
+    Removing the line is safe under either reading of how they run it -
+    ``script.py`` already defaults to ``public,private`` when the variable is
+    unset, and an override still wins if they set one. Local testing passes
+    the split explicitly instead (see the bundle README).
+    """
+    note = (
+        "# NOTE: BATTERYSWAP_SPLITS is deliberately NOT set here. script.py\n"
+        "# defaults to public,private, which is what the organisers score.\n"
+        "# For a local run pass the split explicitly:\n"
+        "#   docker run -e BATTERYSWAP_SPLITS=train ...\n"
+    )
+    out = []
+    for line in text.splitlines(keepends=True):
+        if line.strip().startswith("ENV BATTERYSWAP_SPLITS"):
+            out.append(note)
+            continue
+        if line.strip() == "# Default to running on train split only":
+            continue
+        out.append(line)
+    return "".join(out)
 
 
 def verify_bundle(out_dir: str | Path = "submission") -> list[str]:
