@@ -183,6 +183,9 @@ python -m batteryswap.cli cv
 
 ## Reproduce
 
+Full testing guide: **[TESTING.md](TESTING.md)** — from a 3-second
+smoke test to running the competition container.
+
 ```bash
 python -m pip install -e ".[dev]"
 make test          # 67 tests; the synthetic ones need no official files
