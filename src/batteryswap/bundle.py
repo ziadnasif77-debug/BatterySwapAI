@@ -122,6 +122,13 @@ def build_bundle(planner, out_dir: str | Path = "submission",
     example = out / "batteryswap_example"
     (example / "planners").mkdir(parents=True)
 
+    # MIT is a prize-eligibility condition: the FAQ states submissions are
+    # expected to be open-sourced under it. The bundle is its own repository,
+    # so it needs its own copy.
+    licence = Path("LICENSE")
+    if licence.exists():
+        shutil.copy2(licence, out / "LICENSE")
+
     # 1. the harness files, verbatim from the official repo when available
     for name in ("script.py", "requirements.txt", "Dockerfile"):
         source = official / name
