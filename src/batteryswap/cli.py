@@ -1,4 +1,4 @@
-"""Command-line entry points — one subcommand per Makefile target.
+"""Command-line entry points - one subcommand per Makefile target.
 
 Every command is deterministic and non-interactive. Commands that need
 unresolved constants fail fast with an UnknownValueError naming the exact
@@ -43,7 +43,7 @@ def cmd_dry_run(args) -> int:
     from .dryrun import run_dry_run
     res = run_dry_run(seed=args.seed, n_buildings=args.buildings,
                       alns_iterations=args.alns_iterations, use_saa=args.saa)
-    print("DRY RUN — synthetic data + synthetic cost model (rehearsal only; "
+    print("DRY RUN - synthetic data + synthetic cost model (rehearsal only; "
           "no official constants involved)")
     print(f"  fleet: {res.n_batteries} batteries | split by building: "
           f"{res.n_train} train / {res.n_calib} calib / {res.n_eval} eval")
@@ -66,7 +66,7 @@ def cmd_dry_run(args) -> int:
 
     if args.report:
         from .plots import plot_coverage, plot_q_sweep
-        cov_path = plot_coverage(res.coverage, title="Dry run — calibrated coverage")
+        cov_path = plot_coverage(res.coverage, title="Dry run - calibrated coverage")
         q_path = plot_q_sweep(res.q_sweep, q_star=res.q_star)
         print(f"  wrote {cov_path}\n  wrote {q_path}")
 
@@ -90,7 +90,7 @@ def cmd_dry_run(args) -> int:
 
 
 def cmd_cv(args) -> int:
-    """Grouped CV on the synthetic fleet — proves the harness before data day."""
+    """Grouped CV on the synthetic fleet - proves the harness before data day."""
     import numpy as np
     import pandas as pd
 
@@ -120,9 +120,9 @@ def cmd_cv(args) -> int:
 
     folds = cross_validate_quantiles(X, y, groups, QUANTILES, dict(GBM_PARAMS),
                                      seed=args.seed, n_splits=args.folds)
-    print("GroupKFold on building_id — per-fold (⛔ never a random row/battery split):")
+    print("GroupKFold on building_id - per-fold (!! never a random row/battery split):")
     print(folds.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
-    print("\nacross folds (⛔ report variance, not just the mean):")
+    print("\nacross folds (!! report variance, not just the mean):")
     print(summarize_folds(folds).to_string(float_format=lambda v: f"{v:.3f}"))
     return 0
 
@@ -176,7 +176,7 @@ def cmd_submit(args) -> int:
     horizon = data.scenarios[0].horizon_days
     y, keep = training_targets(meta, truth, horizon)
     print(f"training B3 on {int(keep.sum()):,} of {len(X):,} (device, scenario) rows "
-          f"— unknowable rows dropped (see pipeline.training_targets), "
+          f"- unknowable rows dropped (see pipeline.training_targets), "
           f"{groups[keep].nunique()} buildings ...")
     trained = train(X[keep], y[keep], groups[keep], seed=args.seed)
     for k, v in trained.diagnostics.items():
@@ -364,7 +364,7 @@ def cmd_official(args) -> int:
         problems = verify_bundle(out)
         print(f"  built submission bundle at {out}/")
         if problems:
-            print("  ⛔ bundle problems:")
+            print("  !! bundle problems:")
             for problem in problems:
                 print(f"     - {problem}")
             return 1
@@ -390,12 +390,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("audit", help="write reports/data_audit.md").set_defaults(fn=cmd_audit)
 
     dry = sub.add_parser("dry-run", help="end-to-end plumbing rehearsal on synthetic "
-                                         "data — needs no official files")
+                                         "data - needs no official files")
     dry.add_argument("--seed", type=int, default=0)
     dry.add_argument("--buildings", type=int, default=8)
     dry.add_argument("--alns-iterations", type=int, default=1500)
     dry.add_argument("--saa", action="store_true",
-                     help="optimize on scenario-averaged curves (§12.5)")
+                     help="optimize on scenario-averaged curves (section 12.5)")
     dry.add_argument("--report", action="store_true",
                      help="write coverage + q-sweep figures to reports/")
     dry.add_argument("--record", action="store_true",
